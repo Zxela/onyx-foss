@@ -40,16 +40,10 @@ load_env_vars()
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-# Import `onyx.main` BEFORE calling fetch_versioned_implementation ourselves.
-# onyx.main's module body (line 706) already calls fetch_versioned_implementation
-# under set_is_ee_based_on_env_variable(). If our fixture is the first to invoke
-# the dispatcher, the recursion goes:
-#   fixture -> fetch_versioned_implementation -> import ee.onyx.main
-#     -> ee.onyx.main line 53 `from onyx.main import get_application`
-#     -> onyx.main line 706 calls fetch_versioned_implementation again
-#     -> tries to import ee.onyx.main (mid-init), AttributeError on get_application.
-# Letting onyx.main load first means ee.onyx.main's back-reference to
-# onyx.main.get_application (defined at line 429, before line 706) resolves cleanly.
+# Import `onyx.main` before any fixture triggers fetch_versioned_implementation,
+# so its module body (which calls the dispatcher under
+# set_is_ee_based_on_env_variable()) loads cleanly first and get_application is
+# fully defined before the dispatcher is invoked from elsewhere.
 import onyx.main  # noqa: E402, F401
 from onyx.auth.schemas import UserRole  # noqa: E402
 from onyx.background.celery.apps.client import celery_app  # noqa: E402
@@ -77,7 +71,6 @@ from tests.integration.common_utils.managers.llm_provider import (  # noqa: E402
 from tests.integration.common_utils.managers.user import build_email  # noqa: E402
 from tests.integration.common_utils.managers.user import DEFAULT_PASSWORD  # noqa: E402
 from tests.integration.common_utils.managers.user import UserManager  # noqa: E402
-from tests.integration.common_utils.reset import _seed_dev_license_if_set  # noqa: E402
 from tests.integration.common_utils.reset import reset_all  # noqa: E402
 from tests.integration.common_utils.reset import reset_all_multitenant  # noqa: E402
 from tests.integration.common_utils.test_models import DATestAPIKey  # noqa: E402
@@ -312,20 +305,6 @@ def _test_client(
             yield test_client
         finally:
             http_client.set_test_client(None)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def seed_dev_license_for_session(initialize_db: None) -> None:  # noqa: ARG001
-    # ``reset_postgres`` re-seeds the dev license after every wipe, but tests
-    # that don't take the ``reset`` fixture would otherwise hit Business-tier
-    # endpoints (e.g. /admin/api-key) with no License row and 402. Seed once at
-    # session start; no-op when ONYX_DEV_LICENSE is unset. Skip in multi-tenant
-    # mode: License rows live in tenant schemas, and the public-schema session
-    # here would seed into the wrong place.
-    if MULTI_TENANT:
-        return
-    with get_session_with_current_tenant() as db_session:
-        _seed_dev_license_if_set(db_session)
 
 
 """NOTE: for some reason using this seems to lead to misc
