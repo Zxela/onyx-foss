@@ -70,7 +70,6 @@ from onyx.server.api_key.api import router as api_key_router
 from onyx.server.auth.captcha_api import CaptchaCookieMiddleware
 from onyx.server.auth.captcha_api import LoginCaptchaMiddleware
 from onyx.server.auth.captcha_api import router as captcha_router
-from onyx.server.auth.mobile import router as mobile_auth_router
 from onyx.server.auth_check import check_router_auth
 from onyx.server.documents.cc_pair import router as cc_pair_router
 from onyx.server.documents.connector import router as connector_router
@@ -165,7 +164,6 @@ from onyx.utils.middleware import add_onyx_request_id_middleware
 from onyx.utils.telemetry import get_or_generate_uuid
 from onyx.utils.telemetry import optional_telemetry
 from onyx.utils.telemetry import RecordType
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from onyx.utils.variable_functionality import fetch_versioned_implementation
 from onyx.utils.variable_functionality import global_version
 from onyx.utils.variable_functionality import set_is_ee_based_on_env_variable
@@ -348,11 +346,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
             "readonly": SqlEngine.get_readonly_engine(),
         },
     )
-
-    # Self-hosted license seat + expiry gauges on /metrics (EE-only, no-op on CE)
-    fetch_ee_implementation_or_noop(
-        "onyx.server.metrics.license_metrics", "register_license_metrics"
-    )()
 
     verify_auth = fetch_versioned_implementation(
         "onyx.auth.users", "verify_auth_setting"
@@ -592,14 +585,6 @@ def get_application(lifespan_override: Lifespan | None = None) -> FastAPI:
             application,
             fastapi_users.get_users_router(UserRead, UserUpdate),
             prefix="/users",
-        )
-
-        # Native mobile clients: same email/password auth, but the session
-        # token is issued/refreshed/revoked as a Bearer instead of a cookie.
-        include_auth_router_with_prefix(
-            application,
-            mobile_auth_router,
-            prefix="/auth/mobile",
         )
 
     # Register Google OAuth when AUTH_TYPE is GOOGLE_OAUTH, or when
