@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import {
-  AuthType,
-  SERVER_SIDE_ONLY__PAID_ENTERPRISE_FEATURES_ENABLED,
-  SERVER_SIDE_ONLY__AUTH_TYPE,
-  SERVER_SIDE_ONLY__AUTH_COOKIE_NAME,
-} from "./lib/constants";
+import { SERVER_SIDE_ONLY__AUTH_COOKIE_NAME } from "./lib/constants";
 
 // Authentication cookie names (matches backend constants)
 const ANONYMOUS_USER_COOKIE_NAME = "onyx_anonymous_user";
@@ -50,23 +45,12 @@ const CSP_HEADER = [
   .join(" ");
 
 // Match every route except Next.js internals and static assets so the CSP rides
-// on all document responses. The auth/EE logic below is pathname-gated, so the
+// on all document responses. The auth logic below is pathname-gated, so the
 // broader match doesn't change its behavior. Matchers must be static strings —
 // no JS runs before `config` is read.
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
-
-// Enterprise Edition specific routes (ONLY these get /ee rewriting)
-const EE_ROUTES = [
-  "/admin/groups",
-  "/admin/performance/usage",
-  "/admin/performance/query-history",
-  "/admin/theme",
-  "/admin/performance/custom-analytics",
-  "/admin/standard-answer",
-  "/agents/stats",
-];
 
 function withSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set("Content-Security-Policy", CSP_HEADER);
@@ -96,14 +80,6 @@ export async function proxy(request: NextRequest) {
       const fullPath = pathname + request.nextUrl.search + request.nextUrl.hash;
       loginUrl.searchParams.set("next", fullPath);
       return withSecurityHeaders(NextResponse.redirect(loginUrl));
-    }
-  }
-
-  // Enterprise Edition: Rewrite EE-specific routes to /ee prefix
-  if (SERVER_SIDE_ONLY__PAID_ENTERPRISE_FEATURES_ENABLED) {
-    if (EE_ROUTES.some((route) => pathname.startsWith(route))) {
-      const newUrl = new URL(`/ee${pathname}`, request.url);
-      return withSecurityHeaders(NextResponse.rewrite(newUrl));
     }
   }
 

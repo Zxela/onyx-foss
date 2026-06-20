@@ -59,7 +59,7 @@ function EditGroupPage({ groupId }: EditGroupPageProps) {
   const settings = useSettings();
   const isEnterpriseTier = tierAtLeast(settings.tier, Tier.ENTERPRISE);
   const tokenLimitsDisabledTooltip = markdown(
-    "Token rate limits are available on the [Enterprise version of Onyx](/admin/billing) only."
+    "Per-group token rate limits are not available in this build."
   );
 
   // Fetch the group data — poll every 5s while syncing so the UI updates

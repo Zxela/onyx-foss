@@ -43,13 +43,9 @@ import DocumentsSidebar from "@/sections/document-sidebar/DocumentsSidebar";
 import PreviewModal from "@/sections/modals/PreviewModal";
 import { personaIncludesRetrieval } from "@/app/app/services/lib";
 import { useQueryController } from "@/providers/QueryControllerProvider";
-import { paidTierGated } from "@/ce";
-import EESearchUI from "@/ee/sections/SearchUI";
 import useMultiModelChat from "@/hooks/useMultiModelChat";
 import MultiModelSelector from "@/sections/model-selector/MultiModelSelector";
 import { Section } from "@/layouts/general-layouts";
-
-const SearchUI = paidTierGated(EESearchUI);
 
 interface NRFPageProps {
   isSidePanel?: boolean;
@@ -408,11 +404,6 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
   }, [tabReadingEnabled]);
 
   // Handle search result document click
-  const handleSearchDocumentClick = useCallback(
-    (doc: MinimalOnyxDocument) => setPresentingDocument(doc),
-    []
-  );
-
   return (
     <div
       className={cn(
@@ -557,14 +548,6 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
               />
               <Spacer rem={isSidePanel ? 1 : 0.5} />
             </div>
-
-            {/* Search results - shown when query is classified as search */}
-            {isSearch && (
-              <div className="flex-1 w-full max-w-(--app-page-main-content-width) px-4 min-h-0 overflow-auto">
-                <Spacer rem={0.75} />
-                <SearchUI onDocumentClick={handleSearchDocumentClick} />
-              </div>
-            )}
 
             {/* Spacer to push content up when showing welcome message */}
             {!hasMessages && !isSearch && <div className="flex-1 w-full" />}

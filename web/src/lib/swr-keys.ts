@@ -111,7 +111,6 @@ export const SWR_KEYS = {
   // ── Groups ────────────────────────────────────────────────────────────────
   adminUserGroups: "/api/manage/admin/user-group",
   shareableGroups: "/api/manage/user-groups/minimal",
-  scimToken: "/api/admin/enterprise-settings/scim/token",
 
   // ── MCP Servers ───────────────────────────────────────────────────────────
   adminMcpServers: "/api/admin/mcp/servers",
@@ -157,9 +156,6 @@ export const SWR_KEYS = {
   userGroupTokenRateLimit: (groupId: number) =>
     `/api/admin/token-rate-limits/user-group/${groupId}`,
 
-  // ── Usage Reports ─────────────────────────────────────────────────────────
-  usageReport: "/api/admin/usage-report",
-
   // ── Web Search ────────────────────────────────────────────────────────────
   webSearchContentProviders: "/api/admin/web-search/content-providers",
   webSearchSearchProviders: "/api/admin/web-search/search-providers",
@@ -167,29 +163,12 @@ export const SWR_KEYS = {
   // ── Prompt shortcuts ──────────────────────────────────────────────────────
   promptShortcuts: "/api/input_prompt",
 
-  // ── License & Billing ─────────────────────────────────────────────────────
-  license: "/api/license",
-  billingInformationCloud: "/api/tenants/billing-information",
-  billingInformationSelfHosted: "/api/admin/billing/billing-information",
-
-  // ── Admin ─────────────────────────────────────────────────────────────────
-  hooks: "/api/admin/hooks",
-  hookSpecs: "/api/admin/hooks/specs",
-
   // ── Slack Bots ────────────────────────────────────────────────────────────
   slackChannels: "/api/manage/admin/slack-app/channel",
   slackBots: "/api/manage/admin/slack-app/bots",
   slackBot: (botId: number) => `/api/manage/admin/slack-app/bots/${botId}`,
   slackBotConfig: (botId: number) =>
     `/api/manage/admin/slack-app/bots/${botId}/config`,
-
-  // ── Standard Answers (EE) ─────────────────────────────────────────────────
-  standardAnswerCategories: "/api/manage/admin/standard-answer/category",
-  standardAnswers: "/api/manage/admin/standard-answer",
-
-  // ── Query History (EE) ────────────────────────────────────────────────────
-  adminChatSessionHistory: "/api/admin/chat-session-history",
-  adminChatSession: (id: string) => `/api/admin/chat-session-history/${id}`,
 
   // ── MCP Server (per-ID) ───────────────────────────────────────────────────
   adminMcpServer: (id: number) => `/api/admin/mcp/servers/${id}`,

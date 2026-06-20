@@ -71,9 +71,6 @@ import { useSidebarState } from "@opal/layouts";
 import { useQueryController } from "@/providers/QueryControllerProvider";
 import WelcomeMessage from "@/app/app/components/WelcomeMessage";
 import ChatUI from "@/sections/chat/ChatUI";
-import { paidTierGated } from "@/ce";
-import EESearchUI from "@/ee/sections/SearchUI";
-const SearchUI = paidTierGated(EESearchUI);
 import { motion, AnimatePresence } from "motion/react";
 
 interface FadeProps {
@@ -610,11 +607,6 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
     if (!isNewSession && isSearch) resetInputBar();
   }, [isNewSession, defaultAppMode, isSearch, resetInputBar, setAppMode]);
 
-  const handleSearchDocumentClick = useCallback(
-    (doc: MinimalOnyxDocument) => setPresentingDocument(doc),
-    []
-  );
-
   const handleAppInputBarSubmit = useCallback(
     async (message: string) => {
       // If we're in an existing chat session, always use chat mode
@@ -1067,15 +1059,6 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
                   >
                     <Spacer rem={0.5} />
                     <Suggestions onSubmit={onSubmit} />
-                  </Fade>
-
-                  {/* SearchUI */}
-                  <Fade
-                    show={isSearch}
-                    className="h-full flex-1 w-full max-w-(--app-page-main-content-width) px-1 flex flex-col"
-                  >
-                    <Spacer rem={0.75} />
-                    <SearchUI onDocumentClick={handleSearchDocumentClick} />
                   </Fade>
                 </div>
               </div>

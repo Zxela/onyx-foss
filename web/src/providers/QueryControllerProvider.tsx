@@ -1,8 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
-import { paidTierGated } from "@/ce";
-import { QueryControllerProvider as EEQueryControllerProvider } from "@/ee/providers/QueryControllerProvider";
+import { createContext, useContext, ReactNode } from "react";
 import { SearchDocWithContent, BaseFilters } from "@/lib/search/interfaces";
 
 export type AppMode = "auto" | "search" | "chat";
@@ -54,4 +52,8 @@ export function useQueryController(): QueryControllerValue {
   return useContext(QueryControllerContext);
 }
 
-export const QueryControllerProvider = paidTierGated(EEQueryControllerProvider);
+// CE: chat-only. The provider is a pass-through so consumers fall back to the
+// default (chat) context above; hybrid search was an Enterprise feature.
+export function QueryControllerProvider({ children }: { children: ReactNode }) {
+  return <>{children}</>;
+}

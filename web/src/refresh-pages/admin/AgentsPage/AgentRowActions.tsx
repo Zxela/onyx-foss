@@ -13,7 +13,6 @@ import {
   SvgStar,
   SvgStarOff,
   SvgShare,
-  SvgBarChart,
   SvgTrash,
 } from "@opal/icons";
 import { Popover, PopoverMenu } from "@opal/components";
@@ -235,18 +234,6 @@ export default function AgentRowActions({
                 >
                   Share
                 </LineItem>,
-                businessTier ? (
-                  <LineItem
-                    key="stats"
-                    icon={SvgBarChart}
-                    onClick={() => {
-                      setPopoverOpen(false);
-                      router.push(`/ee/agents/stats/${agent.id}` as Route);
-                    }}
-                  >
-                    Stats
-                  </LineItem>
-                ) : undefined,
                 !agent.builtin_persona ? null : undefined,
                 !agent.builtin_persona ? (
                   <LineItem

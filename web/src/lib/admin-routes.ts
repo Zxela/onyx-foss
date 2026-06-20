@@ -1,24 +1,18 @@
 import { IconFunctionComponent } from "@opal/types";
 import {
   SvgActions,
-  SvgActivity,
   SvgAudio,
-  SvgShareWebhook,
-  SvgBarChart,
   SvgBookOpen,
   SvgBubbleText,
-  SvgClipboard,
   SvgCpu,
   SvgDownload,
   SvgEmpty,
   SvgFileText,
   SvgFiles,
   SvgGlobe,
-  SvgHistory,
   SvgImage,
   SvgMcp,
   SvgOnyxOctagon,
-  SvgPaintBrush,
   SvgProgressBars,
   SvgSearchMenu,
   SvgShield,
@@ -27,9 +21,6 @@ import {
   SvgUploadCloud,
   SvgUser,
   SvgUserKey,
-  SvgUserSync,
-  SvgUsers,
-  SvgWallet,
   SvgZoomIn,
   SvgDiscord,
   SvgSlack,
@@ -107,18 +98,6 @@ export const ADMIN_ROUTES = {
     title: "OpenAPI Actions",
     sidebarLabel: "OpenAPI Actions",
   },
-  STANDARD_ANSWERS: {
-    path: "/admin/standard-answer",
-    icon: SvgClipboard,
-    title: "Standard Answers",
-    sidebarLabel: "Standard Answers",
-  },
-  GROUPS: {
-    path: "/admin/groups",
-    icon: SvgUsers,
-    title: "Manage User Groups",
-    sidebarLabel: "Groups",
-  },
   CHAT_PREFERENCES: {
     path: "/admin/configuration/chat-preferences",
     icon: SvgBubbleText,
@@ -185,48 +164,6 @@ export const ADMIN_ROUTES = {
     title: "Spending Limits",
     sidebarLabel: "Spending Limits",
   },
-  USAGE: {
-    path: "/admin/performance/usage",
-    icon: SvgActivity,
-    title: "Usage Statistics",
-    sidebarLabel: "Usage Statistics",
-  },
-  QUERY_HISTORY: {
-    path: "/admin/performance/query-history",
-    icon: SvgHistory,
-    title: "Query History",
-    sidebarLabel: "Query History",
-  },
-  CUSTOM_ANALYTICS: {
-    path: "/admin/performance/custom-analytics",
-    icon: SvgBarChart,
-    title: "Custom Analytics",
-    sidebarLabel: "Custom Analytics",
-  },
-  THEME: {
-    path: "/admin/theme",
-    icon: SvgPaintBrush,
-    title: "Appearance & Theming",
-    sidebarLabel: "Appearance & Theming",
-  },
-  BILLING: {
-    path: "/admin/billing",
-    icon: SvgWallet,
-    title: "Plans & Billing",
-    sidebarLabel: "Plans & Billing",
-  },
-  HOOKS: {
-    path: "/admin/hooks",
-    icon: SvgShareWebhook,
-    title: "Hook Extensions",
-    sidebarLabel: "Hook Extensions",
-  },
-  SCIM: {
-    path: "/admin/scim",
-    icon: SvgUserSync,
-    title: "SCIM",
-    sidebarLabel: "SCIM",
-  },
   DEBUG: {
     path: "/admin/debug",
     icon: SvgDownload,
@@ -239,16 +176,10 @@ export const ADMIN_ROUTES = {
     title: "Security & Hardening",
     sidebarLabel: "Security & Hardening",
   },
-  // Prefix-only entries used for layout matching — not rendered as sidebar
-  // items or page headers.
+  // Prefix-only entry used for layout matching — not rendered as a sidebar
+  // item or page header.
   DOCUMENTS: {
     path: "/admin/documents",
-    icon: SvgEmpty,
-    title: "",
-    sidebarLabel: "",
-  },
-  PERFORMANCE: {
-    path: "/admin/performance",
     icon: SvgEmpty,
     title: "",
     sidebarLabel: "",

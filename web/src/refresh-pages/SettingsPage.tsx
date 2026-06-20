@@ -68,7 +68,6 @@ import { useTierAtLeast } from "@/hooks/useTierAtLeast";
 import { Tier } from "@/lib/settings/types";
 import { useIsSearchModeAvailable } from "@/lib/settings/hooks";
 import { Tooltip } from "@opal/components";
-import { useCloudSubscription } from "@/hooks/useCloudSubscription";
 import { useSmoothStreaming } from "@/hooks/useSmoothStreaming";
 import { findModelConfigId } from "@/lib/languageModels/options";
 
@@ -1328,8 +1327,6 @@ function AccountsAccessSettings() {
     useState<CreatedTokenState | null>(null);
   const [tokenToDelete, setTokenToDelete] = useState<PAT | null>(null);
 
-  const canCreateTokens = useCloudSubscription();
-
   const showPasswordSection = Boolean(user?.password_configured);
   const showTokensSection = authType !== null;
 
@@ -1352,7 +1349,7 @@ function AccountsAccessSettings() {
   const { data: scopeOptions = [], error: scopeOptionsError } = useSWR<
     PatScopeOption[]
   >(
-    showTokensSection && canCreateTokens ? SWR_KEYS.userPatScopes : null,
+    showTokensSection ? SWR_KEYS.userPatScopes : null,
     errorHandlingFetcher,
     { fallbackData: [] }
   );
@@ -1686,10 +1683,9 @@ function AccountsAccessSettings() {
               variant="section"
               width="full"
             />
-            {canCreateTokens ? (
-              <Card padding={0.25}>
-                <Section gap={0}>
-                  <Section flexDirection="row" padding={0.25} gap={0.5}>
+            <Card padding={0.25}>
+              <Section gap={0}>
+                <Section flexDirection="row" padding={0.25} gap={0.5}>
                     {pats.length === 0 ? (
                       <Section padding={0.5} alignItems="start">
                         <Text font="secondary-body" color="text-03">
@@ -1785,18 +1781,6 @@ function AccountsAccessSettings() {
                   </Section>
                 </Section>
               </Card>
-            ) : (
-              <Card>
-                <Section flexDirection="row" justifyContent="between">
-                  <Text font="secondary-body" color="text-03">
-                    Access tokens require an active paid subscription.
-                  </Text>
-                  <Button prominence="secondary" href="/admin/billing">
-                    Upgrade Plan
-                  </Button>
-                </Section>
-              </Card>
-            )}
           </Section>
         )}
       </Section>
