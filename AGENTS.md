@@ -170,7 +170,7 @@ web/
 
 ## Frontend Standards
 
-Frontend standards for the `web/` and `desktop/` projects live in `web/AGENTS.md`.
+Frontend standards for the `web/` project live in `web/AGENTS.md`.
 
 ## Database & Migrations
 

@@ -43,7 +43,6 @@ reviews:
         web/AGENTS.md file.
       include:
         - web/**
-        - desktop/**
 
     - name: No debugging code
       description: >
