@@ -18,10 +18,8 @@ const PUBLIC_ROUTES = ["/auth", "/anonymous", "/_next", "/api"];
 //
 // frame-ancestors controls who may embed Onyx in an <iframe>. On by default;
 // WEB_FRAME_PROTECTION_ENABLED=false drops it so any origin may frame Onyx.
-// chrome-extension:/moz-extension: are app-wide (the extension iframes every
-// route, not just /nrf) and cover both Chromium and Firefox builds.
-// X-Frame-Options is omitted: it can't express the extension allowance and
-// modern browsers honor frame-ancestors.
+// X-Frame-Options is omitted in favor of frame-ancestors, which modern
+// browsers honor.
 const frameProtectionEnabled =
   process.env.WEB_FRAME_PROTECTION_ENABLED?.toLowerCase() !== "false";
 
@@ -37,9 +35,7 @@ const CSP_HEADER = [
   "object-src 'none';",
   "base-uri 'self';",
   "form-action 'self';",
-  frameProtectionEnabled
-    ? "frame-ancestors 'self' chrome-extension: moz-extension:;"
-    : "",
+  frameProtectionEnabled ? "frame-ancestors 'self';" : "",
   upgradeInsecureRequests ? "upgrade-insecure-requests;" : "",
 ]
   .filter(Boolean)

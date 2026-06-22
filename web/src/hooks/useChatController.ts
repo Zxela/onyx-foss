@@ -59,8 +59,6 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-import { track, AnalyticsEvent } from "@/lib/analytics/utils";
-import { getExtensionContext } from "@/lib/extension/utils";
 import useChatSessions from "@/hooks/useChatSessions";
 import { usePinnedAgents } from "@/lib/agents/hooks";
 import {
@@ -257,8 +255,6 @@ export default function useChatController({
     );
 
     // Navigate immediately if still on chat page
-    // For NRF pages (/chat/nrf, /chat/nrf/side-panel), don't navigate immediately
-    // Let the streaming complete inline, then the user can continue chatting there
     const isOnChatPage = pathname === "/app";
 
     if (isOnChatPage && !navigatingAway.current) {
@@ -484,8 +480,6 @@ export default function useChatController({
 
       let currChatSessionId: string;
       // Check both the prop and the store's currentSessionId to determine if this is a new session
-      // For pages like NRF where existingChatSessionId is always null, we need to check if
-      // we already have a session from a previous message
       const isNewSession = existingChatSessionId === null && !currentSessionId;
 
       const searchParamBasedChatSessionName =
@@ -894,10 +888,7 @@ export default function useChatController({
             ? forcedToolIds[0]
             : null;
 
-        // Determine origin for telemetry tracking (also used for frontend PostHog tracking below)
-        const { isExtension, context: extensionContext } =
-          getExtensionContext();
-        const messageOrigin = isExtension ? "chrome_extension" : "webapp";
+        const messageOrigin = "webapp";
 
         const stack = new CurrentMessageFIFO();
         updateCurrentMessageFIFO(stack, {
@@ -986,16 +977,6 @@ export default function useChatController({
               newUserMessageId = (packet as MessageResponseIDInfo)
                 .user_message_id;
               userNodeDirty = true;
-
-              // Track extension queries in PostHog (reuses isExtension/extensionContext from above)
-              if (isExtension) {
-                track(AnalyticsEvent.EXTENSION_CHAT_QUERY, {
-                  extension_context: extensionContext,
-                  assistant_id: liveAgent?.id,
-                  has_files: effectiveFileDescriptors.length > 0,
-                  deep_research: deepResearch,
-                });
-              }
             }
 
             if (
