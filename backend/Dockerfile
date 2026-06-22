@@ -173,7 +173,6 @@ COPY --chown=onyx:onyx ./scripts/force_delete_connector_by_id.py /app/scripts/fo
 COPY --chown=onyx:onyx ./scripts/supervisord_entrypoint.sh /app/scripts/supervisord_entrypoint.sh
 COPY --chown=onyx:onyx ./scripts/reencrypt_secrets.py /app/scripts/reencrypt_secrets.py
 COPY --chown=onyx:onyx ./scripts/rotate_llm_provider_keys.py /app/scripts/rotate_llm_provider_keys.py
-COPY --chown=onyx:onyx ./scripts/seed_dev_license.py /app/scripts/seed_dev_license.py
 RUN chmod +x /app/scripts/supervisord_entrypoint.sh
 
 # Put logo in assets
