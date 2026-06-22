@@ -33,13 +33,13 @@ class OnyxVersion:
 
 global_version = OnyxVersion()
 
-# Read LICENSE_ENFORCEMENT_ENABLED directly since it's in EE configs
-# This allows EE code to load when license enforcement is enabled,
-# even without ENABLE_PAID_ENTERPRISE_EDITION_FEATURES being set.
-# Eventually, ENABLE_PAID_ENTERPRISE_EDITION_FEATURES will be removed
-# and license enforcement will be the only mechanism for EE features.
+# This is the FOSS build: the Enterprise Edition code (ee.onyx.*) has been
+# removed, so EE mode must default OFF. With it on, fetch_versioned /
+# fetch_ee_implementation_or_noop would try to import the absent ee modules and
+# crash at startup (e.g. onyx.server.tenants for control_plane_dep). Defaulting
+# this to "false" keeps the build on the community code paths.
 _LICENSE_ENFORCEMENT_ENABLED = (
-    os.environ.get("LICENSE_ENFORCEMENT_ENABLED", "true").lower() == "true"
+    os.environ.get("LICENSE_ENFORCEMENT_ENABLED", "false").lower() == "true"
 )
 
 
