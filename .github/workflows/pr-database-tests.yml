@@ -45,7 +45,6 @@ jobs:
               - 'deployment/docker_compose/docker-compose.dev.yml'
               - '.github/workflows/pr-database-tests.yml'
               - '.github/actions/setup-python-and-install-dependencies/**'
-              - '.github/actions/login-ecr-pullthrough-cache/**'
 
   database-tests:
     needs: changes
@@ -73,11 +72,6 @@ jobs:
           LICENSE_ENFORCEMENT_ENABLED: "false"
         run: |
           ods openapi all
-
-      - name: Log in to ECR pull-through cache
-        uses: ./.github/actions/login-ecr-pullthrough-cache
-        with:
-          ecr-registry: ${{ vars.ECR_REGISTRY }}
 
       - name: Start Docker containers
         working-directory: ./deployment/docker_compose
