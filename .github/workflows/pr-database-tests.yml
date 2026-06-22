@@ -45,19 +45,13 @@ jobs:
               - 'deployment/docker_compose/docker-compose.dev.yml'
               - '.github/workflows/pr-database-tests.yml'
               - '.github/actions/setup-python-and-install-dependencies/**'
-              - '.github/actions/login-ecr-pullthrough-cache/**'
 
   database-tests:
     needs: changes
     if: needs.changes.outputs.db == 'true'
-    runs-on:
-      - runs-on
-      - runner=2cpu-linux-arm64
-      - "run-id=${{ github.run_id }}-database-tests"
+    runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - uses: runs-on/action@d141ef83eb66d096ce8afc767e09115a65c63b60
-
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
@@ -78,11 +72,6 @@ jobs:
           LICENSE_ENFORCEMENT_ENABLED: "false"
         run: |
           ods openapi all
-
-      - name: Log in to ECR pull-through cache
-        uses: ./.github/actions/login-ecr-pullthrough-cache
-        with:
-          ecr-registry: ${{ vars.ECR_REGISTRY }}
 
       - name: Start Docker containers
         working-directory: ./deployment/docker_compose
