@@ -114,8 +114,7 @@ export default function SkillSharePicker({
             )}
             {!groupsLoading && !groupsError && groups.length === 0 && (
               <Text as="span" secondaryBody text03>
-                No user groups exist yet. Create groups in /admin/groups to
-                share skills with specific groups.
+                No user groups are available.
               </Text>
             )}
           </Section>
