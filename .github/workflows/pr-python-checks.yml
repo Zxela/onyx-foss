@@ -49,17 +49,10 @@ jobs:
     # See https://runs-on.com/runners/linux/
     # NOTE: This job is named mypy-check for branch protection compatibility,
     # but it actually runs ty (astral-sh's Rust type checker).
-    runs-on:
-      [
-        runs-on,
-        runner=2cpu-linux-arm64,
-        "run-id=${{ github.run_id }}-mypy-check",
-        "extras=s3-cache",
-      ]
+    runs-on: ubuntu-latest
     timeout-minutes: 8
 
     steps:
-      - uses: runs-on/action@d141ef83eb66d096ce8afc767e09115a65c63b60
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:

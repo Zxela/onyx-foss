@@ -46,8 +46,7 @@ jobs:
   backend-check:
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    # See https://runs-on.com/runners/linux/
-    runs-on: [runs-on, runner=4cpu-linux-arm64, "run-id=${{ github.run_id }}-backend-check"]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
 
@@ -60,8 +59,6 @@ jobs:
       LICENSE_ENFORCEMENT_ENABLED: "false"
 
     steps:
-    - uses: runs-on/action@d141ef83eb66d096ce8afc767e09115a65c63b60
-
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
       with:
