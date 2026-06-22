@@ -5,7 +5,6 @@ import LoginText from "@/app/auth/login/LoginText";
 import SignInButton from "@/app/auth/login/SignInButton";
 import EmailPasswordForm from "./EmailPasswordForm";
 import { AuthType, NEXT_PUBLIC_FORGOT_PASSWORD_ENABLED } from "@/lib/constants";
-import { useSendAuthRequiredMessage } from "@/lib/extension/utils";
 import Text from "@/refresh-components/texts/Text";
 import { Button, MessageCard } from "@opal/components";
 
@@ -26,8 +25,6 @@ export default function LoginPage({
   verified,
   isFirstUser,
 }: LoginPageProps) {
-  useSendAuthRequiredMessage();
-
   // Honor any existing nextUrl; only default to new team flow for first users with no nextUrl
   const effectiveNextUrl =
     nextUrl ?? (isFirstUser ? "/app?new_team=true" : null);

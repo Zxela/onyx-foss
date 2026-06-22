@@ -132,3 +132,6 @@ export const MAX_CHUNKS_FED_TO_CHAT = 25;
 export const APP_SLOGAN = "Open Source AI Platform";
 
 export const DEFAULT_PAGE_SIZE = 10;
+
+// Sentinel user id used when auth is disabled (no-auth mode).
+export const NO_AUTH_USER_ID = "__no_auth_user__";

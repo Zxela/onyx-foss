@@ -1156,8 +1156,10 @@ LOG_POSTGRES_LATENCY = os.environ.get("LOG_POSTGRES_LATENCY", "").lower() == "tr
 LOG_POSTGRES_CONN_COUNTS = (
     os.environ.get("LOG_POSTGRES_CONN_COUNTS", "").lower() == "true"
 )
-# Anonymous usage telemetry
-DISABLE_TELEMETRY = os.environ.get("DISABLE_TELEMETRY", "").lower() == "true"
+# Anonymous usage telemetry — defaults OFF in this fork. No data is sent to
+# telemetry.onyx.app unless telemetry is explicitly re-enabled with
+# DISABLE_TELEMETRY=false.
+DISABLE_TELEMETRY = os.environ.get("DISABLE_TELEMETRY", "true").lower() != "false"
 
 #####
 # Braintrust Configuration

@@ -35,7 +35,6 @@ export enum AnalyticsEvent {
   CLICKED_TRY_CRAFT = "clicked_try_craft",
   CLICKED_CRAFT_IN_SIDEBAR = "clicked_craft_in_sidebar",
   RELEASE_NOTIFICATION_CLICKED = "release_notification_clicked",
-  EXTENSION_CHAT_QUERY = "extension_chat_query",
 }
 
 // ─── Shared Enums ──────────────────────────────────────────────────────────
@@ -77,16 +76,6 @@ interface AnalyticsEventProperties {
   [AnalyticsEvent.RELEASE_NOTIFICATION_CLICKED]: {
     /** Semver string of the release that was clicked, if available. */
     version: string | undefined;
-  };
-  [AnalyticsEvent.EXTENSION_CHAT_QUERY]: {
-    /** The context string injected by the browser extension, if any. */
-    extension_context: string | null | undefined;
-    /** The ID of the assistant used for the query, if any. */
-    assistant_id: number | undefined;
-    /** Whether any files were attached to the query. */
-    has_files: boolean;
-    /** Whether deep research mode was active. */
-    deep_research: boolean;
   };
 }
 

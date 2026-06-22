@@ -13,7 +13,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { SvgAlertTriangle, SvgLogOut } from "@opal/icons";
 import { Content } from "@opal/layouts";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { getExtensionContext } from "@/lib/extension/utils";
 
 export default function AppHealthBanner() {
   const router = useRouter();
@@ -54,18 +53,7 @@ export default function AppHealthBanner() {
 
   function handleLogin() {
     setDismissed(true);
-    const { isExtension } = getExtensionContext();
-    if (isExtension) {
-      // In the Chrome extension, open login in a new tab so OAuth popups
-      // work correctly (the extension iframe has no navigable URL origin).
-      window.open(
-        window.location.origin + "/auth/login",
-        "_blank",
-        "noopener,noreferrer"
-      );
-    } else {
-      router.push("/auth/login");
-    }
+    router.push("/auth/login");
   }
 
   const setupExpirationTimeout = useCallback(

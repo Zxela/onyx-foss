@@ -24,8 +24,6 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import NoAgentModal from "@/sections/modals/NoAgentModal";
 import PreviewModal from "@/sections/modals/PreviewModal";
 import Modal from "@/refresh-components/Modal";
-import { useSendMessageToParent } from "@/lib/extension/utils";
-import { SUBMIT_MESSAGE_TYPES } from "@/lib/extension/constants";
 import { getSourceMetadata } from "@/lib/sources";
 import { SourceMetadata } from "@/lib/search/interfaces";
 import { FederatedConnectorDetail, UserRole, ValidSources } from "@/lib/types";
@@ -335,31 +333,11 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
   const loadedIdSessionRef = useRef<string | null>(currentChatSessionId);
   const submitOnLoadPerformed = useRef<boolean>(false);
 
-  function loadNewPageLogic(event: MessageEvent) {
-    if (event.data.type === SUBMIT_MESSAGE_TYPES.PAGE_CHANGE) {
-      try {
-        const url = new URL(event.data.href);
-        processSearchParamsAndSubmitMessage(url.searchParams.toString());
-      } catch (error) {
-        console.error("Error parsing URL:", error);
-      }
-    }
-  }
-
-  // Equivalent to `loadNewPageLogic`
   useEffect(() => {
     if (searchParams?.get(SEARCH_PARAM_NAMES.SEND_ON_LOAD)) {
       processSearchParamsAndSubmitMessage(searchParams.toString());
     }
   }, [searchParams, router]);
-
-  useEffect(() => {
-    window.addEventListener("message", loadNewPageLogic);
-
-    return () => {
-      window.removeEventListener("message", loadNewPageLogic);
-    };
-  }, []);
 
   const [selectedDocuments, setSelectedDocuments] = useState<OnyxDocument[]>(
     []
@@ -502,8 +480,6 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
     refreshChatSessions,
     onSubmit,
   });
-
-  useSendMessageToParent();
 
   const retrievalEnabled = useMemo(() => {
     if (liveAgent) {
