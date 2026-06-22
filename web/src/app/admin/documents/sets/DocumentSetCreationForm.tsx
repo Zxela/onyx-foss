@@ -19,8 +19,6 @@ import {
 } from "@/lib/types";
 import { TextFormField } from "@/components/Field";
 import Button from "@/refresh-components/buttons/Button";
-import { useTierAtLeast } from "@/hooks/useTierAtLeast";
-import { Tier } from "@/lib/settings/types";
 import { IsPublicGroupSelector } from "@/components/IsPublicGroupSelector";
 import React, { useEffect, useState } from "react";
 import { useUser } from "@/providers/UserProvider";
@@ -42,7 +40,6 @@ export const DocumentSetCreationForm = ({
   onClose,
   existingDocumentSet,
 }: SetCreationPopupProps) => {
-  const businessTier = useTierAtLeast(Tier.BUSINESS);
   const isUpdate = existingDocumentSet !== undefined;
   const [localCcPairs, setLocalCcPairs] = useState(ccPairs);
   const { user } = useUser();
@@ -189,12 +186,10 @@ export const DocumentSetCreationForm = ({
                   optional={true}
                 />
 
-                {businessTier && (
-                  <IsPublicGroupSelector
-                    formikProps={props}
-                    objectName="document set"
-                  />
-                )}
+                <IsPublicGroupSelector
+                  formikProps={props}
+                  objectName="document set"
+                />
               </div>
 
               <div className="my-6 border-t border-border-02" />

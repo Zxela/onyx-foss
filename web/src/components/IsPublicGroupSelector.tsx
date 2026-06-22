@@ -1,9 +1,8 @@
-import { useTierAtLeast } from "@/hooks/useTierAtLeast";
-import { Tier } from "@/lib/settings/types";
 import React, { useState, useEffect } from "react";
 import { FormikProps } from "formik";
 import { UserRole } from "@/lib/types";
 import { useUserGroups } from "@/lib/hooks";
+import { useSettings } from "@/lib/settings/hooks";
 import { BooleanFormField } from "@/components/Field";
 import { useUser } from "@/providers/UserProvider";
 import { GroupsMultiSelect } from "./GroupsMultiSelect";
@@ -32,11 +31,12 @@ export const IsPublicGroupSelector = <T extends IsPublicGroupSelectorFormType>({
 }) => {
   const { data: userGroups, isLoading: userGroupsIsLoading } = useUserGroups();
   const { isAdmin, user, isCurator } = useUser();
-  const businessTier = useTierAtLeast(Tier.BUSINESS);
+  const settings = useSettings();
+  const groupsAvailable = !settings.isLoading && settings.enterprise !== null;
   const [shouldHideContent, setShouldHideContent] = useState(false);
 
   useEffect(() => {
-    if (user && userGroups && businessTier) {
+    if (user && userGroups && groupsAvailable) {
       const isUserAdmin = user.role === UserRole.ADMIN;
       if (!isUserAdmin && userGroups.length > 0) {
         formikProps.setFieldValue("is_public", false);
@@ -55,12 +55,13 @@ export const IsPublicGroupSelector = <T extends IsPublicGroupSelectorFormType>({
         setShouldHideContent(false);
       }
     }
-  }, [user, userGroups, businessTier]);
+  }, [user, userGroups, groupsAvailable]);
 
   if (userGroupsIsLoading) {
     return <div>Loading...</div>;
   }
-  if (!businessTier) {
+  // User groups are an enterprise feature; hide the selector when unavailable.
+  if (!groupsAvailable) {
     return null;
   }
 
