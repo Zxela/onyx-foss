@@ -2,11 +2,6 @@
 
 from celery import Celery
 
-from onyx.utils.variable_functionality import fetch_versioned_implementation
-from onyx.utils.variable_functionality import set_is_ee_based_on_env_variable
+from onyx.background.celery.apps.primary import celery_app
 
-set_is_ee_based_on_env_variable()
-app: Celery = fetch_versioned_implementation(
-    "onyx.background.celery.apps.primary",
-    "celery_app",
-)
+app: Celery = celery_app

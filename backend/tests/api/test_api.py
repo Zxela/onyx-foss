@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from onyx.configs.constants import DEV_VERSION_PATTERN
 from onyx.configs.constants import STABLE_VERSION_PATTERN
-from onyx.main import fetch_versioned_implementation
+from onyx.main import get_application
 from onyx.utils.logger import setup_logger
 
 logger = setup_logger()
@@ -20,9 +20,7 @@ def client() -> Generator[TestClient, Any, None]:
     os.environ["ENABLE_PAID_ENTERPRISE_EDITION_FEATURES"] = "True"
 
     # Initialize TestClient with the FastAPI app
-    app: FastAPI = fetch_versioned_implementation(
-        module="onyx.main", attribute="get_application"
-    )()
+    app: FastAPI = get_application()
     client = TestClient(app)
     yield client
 

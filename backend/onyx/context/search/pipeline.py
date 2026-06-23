@@ -25,7 +25,6 @@ from onyx.natural_language_processing.english_stopwords import strip_stopwords
 from onyx.natural_language_processing.search_nlp_models import EmbeddingModel
 from onyx.utils.logger import setup_logger
 from onyx.utils.timing import log_function_time
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from shared_configs.configs import MULTI_TENANT
 from shared_configs.contextvars import get_current_tenant_id
 
@@ -299,14 +298,8 @@ def search_pipeline(
     )
 
     # For some specific connectors like Salesforce, a user that has access to an object doesn't mean
-    # that they have access to all of the fields of the object.
-    censored_chunks: list[InferenceChunk] = fetch_ee_implementation_or_noop(
-        "onyx.external_permissions.post_query_censoring",
-        "_post_query_chunk_censoring",
-        retrieved_chunks,
-    )(
-        chunks=retrieved_chunks,
-        user=user,
-    )
+    # that they have access to all of the fields of the object. The EE post-query censoring path is
+    # a no-op in this build, so the retrieved chunks pass through unchanged.
+    censored_chunks: list[InferenceChunk] = retrieved_chunks
 
     return censored_chunks

@@ -147,7 +147,6 @@ from onyx.utils.telemetry import optional_telemetry
 from onyx.utils.telemetry import RecordType
 from onyx.utils.timing import log_function_time
 from onyx.utils.url import add_url_params
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from shared_configs.configs import async_return_default_schema
 from shared_configs.configs import MULTI_TENANT
 from shared_configs.configs import POSTGRES_DEFAULT_SCHEMA
@@ -368,9 +367,9 @@ def verify_email_domain(
 
 
 def enforce_seat_limit(
-    db_session: Session,
-    seats_needed: int = 1,
-    lock_session: Session | None = None,
+    db_session: Session,  # noqa: ARG001
+    seats_needed: int = 1,  # noqa: ARG001
+    lock_session: Session | None = None,  # noqa: ARG001
 ) -> None:
     """Raise ``OnyxError(SEAT_LIMIT_EXCEEDED)`` if seats would be exceeded.
 
@@ -380,20 +379,9 @@ def enforce_seat_limit(
     transaction.
     """
     if MULTI_TENANT:
-        fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.billing",
-            "enforce_cloud_seat_limit",
-            lambda **_kw: None,
-        )(
-            seats_needed=seats_needed,
-            tenant_id=get_current_tenant_id(),
-            db_session=lock_session,
-        )
         return
 
-    result = fetch_ee_implementation_or_noop(
-        "onyx.db.license", "check_seat_availability", None
-    )(db_session, seats_needed=seats_needed)
+    result = None
 
     if result is not None and not result.available:
         raise OnyxError(OnyxErrorCode.SEAT_LIMIT_EXCEEDED, result.error_message)
@@ -409,20 +397,12 @@ def enforce_seat_limit_locked(db_session: Session, seats_needed: int = 1) -> Non
     caller's session — released on caller commit so the seat-consuming
     write (e.g. ``activate_user``) is covered.
     """
-    fetch_ee_implementation_or_noop("onyx.db.license", "acquire_seat_lock", None)(
-        db_session, get_current_tenant_id()
-    )
-
     enforce_seat_limit(db_session, seats_needed=seats_needed, lock_session=db_session)
 
 
-def _user_currently_counts_toward_seats(user: User) -> bool:
+def _user_currently_counts_toward_seats(user: User) -> bool:  # noqa: ARG001
     """Delegate to canonical ``ee/onyx/db/license.py:user_counts_toward_seats``."""
-    return bool(
-        fetch_ee_implementation_or_noop(
-            "onyx.db.license", "user_counts_toward_seats", False
-        )(user)
-    )
+    return False
 
 
 def _upgrade_will_add_seat(user_before: User, will_become_active: bool) -> bool:
@@ -440,9 +420,7 @@ def _upgrade_will_add_seat(user_before: User, will_become_active: bool) -> bool:
 
 def _invalidate_license_cache_after_seat_change() -> None:
     """Invalidate license cache so middleware re-reads ``used_seats``."""
-    fetch_ee_implementation_or_noop(
-        "onyx.db.license", "invalidate_license_cache", None
-    )()
+    pass
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
@@ -452,9 +430,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     user_db: SQLAlchemyUserDatabase[User, uuid.UUID]
 
     async def get_by_email(self, user_email: str) -> User:
-        tenant_id = fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.user_mapping", "get_tenant_id_for_email", None
-        )(user_email)
+        tenant_id = None
         async with get_async_session_context_manager(tenant_id) as db_session:
             if MULTI_TENANT:
                 tenant_user_db = SQLAlchemyUserAdminDB[User, uuid.UUID](
@@ -494,14 +470,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         except KeyError:
             raise exceptions.InvalidVerifyToken()
 
-        try:
-            tenant_id = fetch_ee_implementation_or_noop(
-                "onyx.server.tenants.user_mapping",
-                "get_tenant_id_for_email",
-                None,
-            )(email)
-        except exceptions.UserNotExists:
-            raise exceptions.InvalidVerifyToken()
+        tenant_id = None
 
         contextvar_token = CURRENT_TENANT_ID_CONTEXTVAR.set(tenant_id)
         try:
@@ -598,11 +567,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             else None
         )
 
-        tenant_id = await fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.provisioning",
-            "get_or_provision_tenant",
-            async_return_default_schema,
-        )(
+        tenant_id = await async_return_default_schema(
             email=user_create.email,
             referral_source=referral_source,
             request=request,
@@ -858,11 +823,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             getattr(request.state, "referral_source", None) if request else None
         )
 
-        tenant_id = await fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.provisioning",
-            "get_or_provision_tenant",
-            async_return_default_schema,
-        )(
+        tenant_id = await async_return_default_schema(
             email=account_email,
             referral_source=referral_source,
             request=request,
@@ -1068,11 +1029,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def on_after_register(
         self, user: User, request: Optional[Request] = None
     ) -> None:
-        tenant_id = await fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.provisioning",
-            "get_or_provision_tenant",
-            async_return_default_schema,
-        )(
+        tenant_id = await async_return_default_schema(
             email=user.email,
             request=request,
         )
@@ -1120,62 +1077,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         finally:
             CURRENT_TENANT_ID_CONTEXTVAR.reset(token)
 
-        # Fetch EE PostHog functions if available
-        get_marketing_posthog_cookie_name = fetch_ee_implementation_or_noop(
-            module="onyx.utils.posthog_client",
-            attribute="get_marketing_posthog_cookie_name",
-            noop_return_value=None,
-        )
-        parse_posthog_cookie = fetch_ee_implementation_or_noop(
-            module="onyx.utils.posthog_client",
-            attribute="parse_posthog_cookie",
-            noop_return_value=None,
-        )
-        capture_and_sync_with_alternate_posthog = fetch_ee_implementation_or_noop(
-            module="onyx.utils.posthog_client",
-            attribute="capture_and_sync_with_alternate_posthog",
-            noop_return_value=None,
-        )
-
-        if (
-            request
-            and user_count is not None
-            and (marketing_cookie_name := get_marketing_posthog_cookie_name())
-            and (marketing_cookie_value := request.cookies.get(marketing_cookie_name))
-            and (parsed_cookie := parse_posthog_cookie(marketing_cookie_value))
-        ):
-            marketing_anonymous_id = parsed_cookie[  # ty: ignore[possibly-unresolved-reference]
-                "distinct_id"
-            ]
-
-            # Technically, USER_SIGNED_UP is only fired from the cloud site when
-            # it is the first user in a tenant. However, it is semantically correct
-            # for the marketing site and should probably be refactored for the cloud site
-            # to also be semantically correct.
-            properties = {
-                "email": user.email,
-                "onyx_cloud_user_id": str(user.id),
-                "tenant_id": str(tenant_id) if tenant_id else None,
-                "role": user.role.value,
-                "is_first_user": user_count == 1,
-                "source": "marketing_site_signup",
-                "conversion_timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-
-            # Add all other values from the marketing cookie (featureFlags, etc.)
-            for (
-                key,
-                value,
-            ) in parsed_cookie.items():  # ty: ignore[possibly-unresolved-reference]
-                if key != "distinct_id":
-                    properties.setdefault(key, value)
-
-            capture_and_sync_with_alternate_posthog(
-                alternate_distinct_id=marketing_anonymous_id,
-                event=MilestoneRecordType.USER_SIGNED_UP,
-                properties=properties,
-            )
-
         logger.debug("User %s has registered.", user.id)
         optional_telemetry(
             record_type=RecordType.SIGN_UP,
@@ -1197,11 +1098,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "Your admin has not enabled this feature.",
             )
-        tenant_id = await fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.provisioning",
-            "get_or_provision_tenant",
-            async_return_default_schema,
-        )(email=user.email)
+        tenant_id = await async_return_default_schema(email=user.email)
 
         send_forgot_password_email(user.email, tenant_id=tenant_id, token=token)
 
@@ -1230,24 +1127,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     ) -> Optional[User]:
         email = credentials.username
 
-        tenant_id: str | None = None
-        try:
-            tenant_id = fetch_ee_implementation_or_noop(
-                "onyx.server.tenants.provisioning",
-                "get_tenant_id_for_email",
-                POSTGRES_DEFAULT_SCHEMA,
-            )(
-                email=email,
-            )
-        except Exception as e:
-            logger.warning(
-                "User attempted to login with invalid credentials: %s", str(e)
-            )
-
-        if not tenant_id:
-            # User not found in mapping
-            self.password_helper.hash(credentials.password)
-            return None
+        tenant_id = POSTGRES_DEFAULT_SCHEMA
 
         # Create a tenant-specific session
         async with get_async_session_context_manager(tenant_id) as tenant_session:
@@ -1363,11 +1243,7 @@ class TenantAwareRedisStrategy(RedisStrategy[User, uuid.UUID]):
     async def write_token(self, user: User) -> str:
         redis = await get_async_redis_connection()
 
-        tenant_id = await fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.provisioning",
-            "get_or_provision_tenant",
-            async_return_default_schema,
-        )(email=user.email)
+        tenant_id = await async_return_default_schema(email=user.email)
 
         token_data = {
             "sub": str(user.id),
@@ -2535,12 +2411,7 @@ def get_oauth_router(
 
             next_url = state_data.get("next_url", "/")
             referral_source = state_data.get("referral_source", None)
-            try:
-                tenant_id = fetch_ee_implementation_or_noop(
-                    "onyx.server.tenants.user_mapping", "get_tenant_id_for_email", None
-                )(account_email)
-            except exceptions.UserNotExists:
-                tenant_id = None
+            tenant_id = None
 
             request.state.referral_source = referral_source
 

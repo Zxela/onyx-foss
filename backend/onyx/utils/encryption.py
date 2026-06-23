@@ -9,12 +9,10 @@ from onyx.connectors.google_utils.shared_constants import (
     DB_CREDENTIALS_AUTHENTICATION_METHOD,
 )
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 
 logger = setup_logger()
 
 
-# IMPORTANT DO NOT DELETE, THIS IS USED BY fetch_versioned_implementation
 def _encrypt_string(input_str: str, key: str | None = None) -> bytes:
     if ENCRYPTION_KEY_SECRET:
         logger.warning("MIT version of Onyx does not support encryption of secrets.")
@@ -23,7 +21,6 @@ def _encrypt_string(input_str: str, key: str | None = None) -> bytes:
     return input_str.encode()
 
 
-# IMPORTANT DO NOT DELETE, THIS IS USED BY fetch_versioned_implementation
 def _decrypt_bytes(input_bytes: bytes, key: str | None = None) -> str:
     if ENCRYPTION_KEY_SECRET:
         logger.warning("MIT version of Onyx does not support decryption of secrets.")
@@ -197,14 +194,8 @@ def _mask_list(items: list[Any]) -> list[Any]:
 
 
 def encrypt_string_to_bytes(intput_str: str, key: str | None = None) -> bytes:
-    versioned_encryption_fn = fetch_versioned_implementation(
-        "onyx.utils.encryption", "_encrypt_string"
-    )
-    return versioned_encryption_fn(intput_str, key=key)
+    return _encrypt_string(intput_str, key=key)
 
 
 def decrypt_bytes_to_string(intput_bytes: bytes, key: str | None = None) -> str:
-    versioned_decryption_fn = fetch_versioned_implementation(
-        "onyx.utils.encryption", "_decrypt_bytes"
-    )
-    return versioned_decryption_fn(intput_bytes, key=key)
+    return _decrypt_bytes(intput_bytes, key=key)

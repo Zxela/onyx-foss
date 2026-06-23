@@ -318,18 +318,16 @@ def test_oidc_callback_uses_code_verifier_when_pkce_enabled() -> None:
     authorize_response = client.get("/auth/oidc/authorize")
     state = _extract_state_from_authorize_response(authorize_response)
 
-    with patch(
-        "onyx.auth.users.fetch_ee_implementation_or_noop",
-        return_value=lambda _email: "tenant_1",
-    ):
-        response = client.get(
-            "/auth/oidc/callback",
-            params={"code": "abc123", "state": state},
-            follow_redirects=False,
-        )
+    # FOSS path: tenant_id is always None (single-tenant), so the callback
+    # redirects to the default next_url with the new_team marker appended.
+    response = client.get(
+        "/auth/oidc/callback",
+        params={"code": "abc123", "state": state},
+        follow_redirects=False,
+    )
 
     assert response.status_code == 302
-    assert response.headers.get("location") == "/"
+    assert response.headers.get("location") == "/?new_team=true"
     assert oauth_client.access_token_calls[0]["code_verifier"] is not None
     user_manager.oauth_callback.assert_awaited_once()
     assert "Max-Age=0" in response.headers.get("set-cookie", "")
@@ -340,15 +338,12 @@ def test_oidc_callback_works_without_pkce_when_flag_disabled() -> None:
     authorize_response = client.get("/auth/oidc/authorize")
     state = _extract_state_from_authorize_response(authorize_response)
 
-    with patch(
-        "onyx.auth.users.fetch_ee_implementation_or_noop",
-        return_value=lambda _email: "tenant_1",
-    ):
-        response = client.get(
-            "/auth/oidc/callback",
-            params={"code": "abc123", "state": state},
-            follow_redirects=False,
-        )
+    # FOSS path: tenant_id is always None (single-tenant); no EE tenant lookup.
+    response = client.get(
+        "/auth/oidc/callback",
+        params={"code": "abc123", "state": state},
+        follow_redirects=False,
+    )
 
     assert response.status_code == 302
     assert oauth_client.access_token_calls[0]["code_verifier"] is None
@@ -365,18 +360,16 @@ def test_oidc_callback_pkce_preserves_redirect_when_backend_login_is_non_redirec
     authorize_response = client.get("/auth/oidc/authorize")
     state = _extract_state_from_authorize_response(authorize_response)
 
-    with patch(
-        "onyx.auth.users.fetch_ee_implementation_or_noop",
-        return_value=lambda _email: "tenant_1",
-    ):
-        response = client.get(
-            "/auth/oidc/callback",
-            params={"code": "abc123", "state": state},
-            follow_redirects=False,
-        )
+    # FOSS path: tenant_id is always None (single-tenant), so the callback
+    # redirects to the default next_url with the new_team marker appended.
+    response = client.get(
+        "/auth/oidc/callback",
+        params={"code": "abc123", "state": state},
+        follow_redirects=False,
+    )
 
     assert response.status_code == 302
-    assert response.headers.get("location") == "/"
+    assert response.headers.get("location") == "/?new_team=true"
     assert oauth_client.access_token_calls[0]["code_verifier"] is not None
     user_manager.oauth_callback.assert_awaited_once()
     assert "Max-Age=0" in response.headers.get("set-cookie", "")

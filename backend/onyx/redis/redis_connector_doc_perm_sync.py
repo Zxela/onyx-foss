@@ -1,36 +1,13 @@
-import time
 from datetime import datetime
-from logging import Logger
 from typing import Any
 from typing import cast
-from typing import NamedTuple
 
 from pydantic import BaseModel
-from redis.lock import Lock as RedisLock
 
-from onyx.access.models import DocExternalAccess
-from onyx.access.models import ElementExternalAccess
-from onyx.configs.constants import CELERY_GENERIC_BEAT_LOCK_TIMEOUT
 from onyx.configs.constants import CELERY_PERMISSIONS_SYNC_LOCK_TIMEOUT
 from onyx.configs.constants import OnyxRedisConstants
 from onyx.redis.redis_pool import SCAN_ITER_COUNT_DEFAULT
 from onyx.redis.tenant_redis_client import TenantRedisClient
-from onyx.server.metrics.perm_sync_metrics import (
-    observe_doc_perm_sync_db_update_duration,
-)
-from onyx.utils.variable_functionality import fetch_versioned_implementation
-
-
-class PermissionSyncResult(NamedTuple):
-    """Result of a permission sync operation.
-
-    Attributes:
-        num_updated: Number of documents successfully updated
-        num_errors: Number of documents that failed to update
-    """
-
-    num_updated: int
-    num_errors: int
 
 
 class RedisConnectorPermissionSyncPayload(BaseModel):
@@ -167,101 +144,6 @@ class RedisConnectorPermissionSync:
             return
 
         self.redis.set(self.generator_complete_key, payload, ex=self.FENCE_TTL)
-
-    def update_db(
-        self,
-        lock: RedisLock | None,
-        new_permissions: list[ElementExternalAccess],
-        source_string: str,
-        connector_id: int,
-        credential_id: int,
-        task_logger: Logger | None = None,
-    ) -> PermissionSyncResult:
-        """Update permissions for documents and hierarchy nodes.
-
-        Returns:
-            PermissionSyncResult containing counts of successful updates and errors
-        """
-        last_lock_time = time.monotonic()
-
-        element_update_permissions_fn = fetch_versioned_implementation(
-            "onyx.background.celery.tasks.doc_permission_syncing.tasks",
-            "element_update_permissions",
-        )
-
-        num_permissions = 0
-        num_errors = 0
-        cumulative_db_update_time = 0.0
-        for permissions in new_permissions:
-            current_time = time.monotonic()
-            if lock and current_time - last_lock_time >= (
-                CELERY_GENERIC_BEAT_LOCK_TIMEOUT / 4
-            ):
-                lock.reacquire()
-                last_lock_time = current_time
-
-            if (
-                permissions.external_access.num_entries
-                > permissions.external_access.MAX_NUM_ENTRIES
-            ):
-                if task_logger:
-                    num_users = len(permissions.external_access.external_user_emails)
-                    num_groups = len(
-                        permissions.external_access.external_user_group_ids
-                    )
-                    element_id = (
-                        permissions.doc_id
-                        if isinstance(permissions, DocExternalAccess)
-                        else permissions.raw_node_id
-                    )
-                    task_logger.warning(
-                        "Permissions length exceeded, skipping...: "
-                        "%s "
-                        "num_users=%s num_groups=%s "
-                        "permissions.external_access.MAX_NUM_ENTRIES=%s",
-                        element_id,
-                        num_users,
-                        num_groups,
-                        permissions.external_access.MAX_NUM_ENTRIES,
-                    )
-                continue
-
-            # NOTE(rkuo): this used to fire a task instead of directly writing to the DB,
-            # but the permissions can be excessively large if sent over the wire.
-            # On the other hand, the downside of doing db updates here is that we can
-            # block and fail if we can't make the calls to the DB ... but that's probably
-            # a rare enough case to be acceptable.
-
-            # This can internally exception due to db issues but still continue
-            # Catch exceptions per-element to avoid breaking the entire sync
-            db_start = time.monotonic()
-            try:
-                element_update_permissions_fn(
-                    self.tenant_id,
-                    permissions,
-                    source_string,
-                    connector_id,
-                    credential_id,
-                )
-                num_permissions += 1
-            except Exception:
-                num_errors += 1
-                if task_logger:
-                    element_id = (
-                        permissions.doc_id
-                        if isinstance(permissions, DocExternalAccess)
-                        else permissions.raw_node_id
-                    )
-                    task_logger.exception(
-                        "Failed to update permissions for element %s", element_id
-                    )
-            finally:
-                cumulative_db_update_time += time.monotonic() - db_start
-
-        observe_doc_perm_sync_db_update_duration(
-            cumulative_db_update_time, source_string
-        )
-        return PermissionSyncResult(num_updated=num_permissions, num_errors=num_errors)
 
     def reset(self) -> None:
         self.redis.srem(OnyxRedisConstants.ACTIVE_FENCES, self.fence_key)

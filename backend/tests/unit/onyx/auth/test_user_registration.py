@@ -73,14 +73,14 @@ class TestDisposableEmailValidation:
 
     @pytest.mark.asyncio
     @patch("onyx.auth.users.is_disposable_email")
-    @patch("onyx.auth.users.fetch_ee_implementation_or_noop")
+    @patch("onyx.auth.users.async_return_default_schema", new_callable=AsyncMock)
     @patch("onyx.auth.users.get_async_session_context_manager")
     @patch("onyx.auth.users.get_user_count", new_callable=AsyncMock)
     async def test_blocks_disposable_email_before_tenant_provision(
         self,
         mock_get_user_count: MagicMock,  # noqa: ARG002
         mock_session_manager: MagicMock,  # noqa: ARG002
-        mock_fetch_ee: MagicMock,
+        mock_provision_tenant: MagicMock,
         mock_is_disposable: MagicMock,
         mock_user_create: UserCreate,
     ) -> None:
@@ -96,12 +96,12 @@ class TestDisposableEmailValidation:
         assert exc.value.status_code == 400
         assert "Disposable email" in exc.value.detail
         # Verify we never got to tenant provisioning
-        mock_fetch_ee.assert_not_called()
+        mock_provision_tenant.assert_not_called()
 
     @pytest.mark.asyncio
     @patch("onyx.auth.users.is_disposable_email")
     @patch("onyx.auth.users.verify_email_domain")
-    @patch("onyx.auth.users.fetch_ee_implementation_or_noop")
+    @patch("onyx.auth.users.async_return_default_schema", new_callable=AsyncMock)
     @patch("onyx.auth.users.get_async_session_context_manager")
     @patch("onyx.auth.users.get_user_count", new_callable=AsyncMock)
     @patch("onyx.auth.users.MULTI_TENANT", False)
@@ -109,7 +109,7 @@ class TestDisposableEmailValidation:
         self,
         mock_get_user_count: MagicMock,
         mock_session_manager: MagicMock,
-        mock_fetch_ee: MagicMock,
+        mock_provision_tenant: MagicMock,
         mock_verify_domain: MagicMock,
         mock_is_disposable: MagicMock,
         mock_user_create: UserCreate,
@@ -119,7 +119,7 @@ class TestDisposableEmailValidation:
         # Setup
         mock_is_disposable.return_value = False
         mock_verify_domain.return_value = None  # No exception = valid
-        mock_fetch_ee.return_value = AsyncMock(return_value="default_schema")
+        mock_provision_tenant.return_value = "default_schema"
         mock_session_manager.return_value = _AsyncSessionContextManager(
             mock_async_session
         )
@@ -152,7 +152,7 @@ class TestMultiTenantInviteLogic:
     @patch("onyx.auth.users.SQLAlchemyUserAdminDB")
     @patch("onyx.auth.users.is_disposable_email", return_value=False)
     @patch("onyx.auth.users.verify_email_domain")
-    @patch("onyx.auth.users.fetch_ee_implementation_or_noop")
+    @patch("onyx.auth.users.async_return_default_schema", new_callable=AsyncMock)
     @patch("onyx.auth.users.get_async_session_context_manager")
     @patch("onyx.auth.users.get_user_count", new_callable=AsyncMock)
     @patch("onyx.auth.users.verify_email_is_invited")
@@ -165,7 +165,7 @@ class TestMultiTenantInviteLogic:
         mock_verify_invited: MagicMock,
         mock_get_user_count: MagicMock,
         mock_session_manager: MagicMock,
-        mock_fetch_ee: MagicMock,
+        mock_provision_tenant: MagicMock,
         mock_verify_domain: MagicMock,  # noqa: ARG002
         mock_is_disposable: MagicMock,  # noqa: ARG002
         mock_sql_alchemy_db: MagicMock,
@@ -175,7 +175,7 @@ class TestMultiTenantInviteLogic:
         """First user in tenant should not require invite."""
         # Setup: No existing users
         mock_get_user_count.return_value = 0
-        mock_fetch_ee.return_value = AsyncMock(return_value="tenant_123")
+        mock_provision_tenant.return_value = "tenant_123"
         mock_session_manager.return_value = _AsyncSessionContextManager(
             mock_async_session
         )
@@ -200,7 +200,7 @@ class TestMultiTenantInviteLogic:
     @patch("onyx.auth.users.SQLAlchemyUserAdminDB")
     @patch("onyx.auth.users.is_disposable_email", return_value=False)
     @patch("onyx.auth.users.verify_email_domain")
-    @patch("onyx.auth.users.fetch_ee_implementation_or_noop")
+    @patch("onyx.auth.users.async_return_default_schema", new_callable=AsyncMock)
     @patch("onyx.auth.users.get_async_session_context_manager")
     @patch("onyx.auth.users.get_user_count", new_callable=AsyncMock)
     @patch("onyx.auth.users.verify_email_is_invited")
@@ -213,7 +213,7 @@ class TestMultiTenantInviteLogic:
         mock_verify_invited: MagicMock,
         mock_get_user_count: MagicMock,
         mock_session_manager: MagicMock,
-        mock_fetch_ee: MagicMock,
+        mock_provision_tenant: MagicMock,
         mock_verify_domain: MagicMock,  # noqa: ARG002
         mock_is_disposable: MagicMock,  # noqa: ARG002
         mock_sql_alchemy_db: MagicMock,
@@ -223,7 +223,7 @@ class TestMultiTenantInviteLogic:
         """Subsequent users in existing tenant should require invite."""
         # Setup: Existing tenant with users
         mock_get_user_count.return_value = 5
-        mock_fetch_ee.return_value = AsyncMock(return_value="tenant_123")
+        mock_provision_tenant.return_value = "tenant_123"
         mock_session_manager.return_value = _AsyncSessionContextManager(
             mock_async_session
         )
@@ -251,7 +251,7 @@ class TestSingleTenantInviteLogic:
 
     @patch("onyx.auth.users.is_disposable_email", return_value=False)
     @patch("onyx.auth.users.verify_email_domain")
-    @patch("onyx.auth.users.fetch_ee_implementation_or_noop")
+    @patch("onyx.auth.users.async_return_default_schema", new_callable=AsyncMock)
     @patch("onyx.auth.users.get_async_session_context_manager")
     @patch("onyx.auth.users.get_user_count", new_callable=AsyncMock)
     @patch("onyx.auth.users.verify_email_is_invited")
@@ -264,7 +264,7 @@ class TestSingleTenantInviteLogic:
         mock_verify_invited: MagicMock,
         mock_get_user_count: MagicMock,
         mock_session_manager: MagicMock,
-        mock_fetch_ee: MagicMock,
+        mock_provision_tenant: MagicMock,
         mock_verify_domain: MagicMock,  # noqa: ARG002
         mock_is_disposable: MagicMock,  # noqa: ARG002
         mock_user_create: UserCreate,
@@ -272,7 +272,7 @@ class TestSingleTenantInviteLogic:
     ) -> None:
         """Single-tenant should always check invite list."""
         # Setup
-        mock_fetch_ee.return_value = AsyncMock(return_value="default_schema")
+        mock_provision_tenant.return_value = "default_schema"
         mock_session_manager.return_value = _AsyncSessionContextManager(
             mock_async_session
         )
@@ -417,70 +417,30 @@ class TestWhitelistBehavior:
 class TestSeatLimitEnforcement:
     """Seat limits block new user creation on self-hosted deployments."""
 
-    def test_adding_user_fails_when_seats_full(self) -> None:
+    def test_self_hosted_seat_limit_not_enforced(self) -> None:
+        # FOSS has no EE seat-limit check, so self-hosted user creation is
+        # never blocked by seats. (Previously this exercised the EE path
+        # that raised 402 when seats were full.)
         from onyx.auth.users import enforce_seat_limit
 
-        seat_result = MagicMock(available=False, error_message="Seat limit reached")
-        with patch(
-            "onyx.auth.users.fetch_ee_implementation_or_noop",
-            return_value=lambda *_a, **_kw: seat_result,
-        ):
-            with pytest.raises(OnyxError) as exc:
-                enforce_seat_limit(MagicMock())
-
-            assert exc.value.status_code == 402
+        with patch("onyx.auth.users.MULTI_TENANT", False):
+            enforce_seat_limit(MagicMock())  # should not raise
 
     def test_seat_limit_only_enforced_for_self_hosted(self) -> None:
         from onyx.auth.users import enforce_seat_limit
 
-        # In MULTI_TENANT mode the local seat check is bypassed in favor of
-        # the cloud auto-bill helper. Patch fetch_ee_implementation_or_noop
-        # to the no-op default so the test does not depend on whether the
-        # real EE billing module has been imported by an earlier test.
-        with (
-            patch("onyx.auth.users.MULTI_TENANT", True),
-            patch(
-                "onyx.auth.users.fetch_ee_implementation_or_noop",
-                return_value=lambda **_kw: None,
-            ),
-        ):
+        # In MULTI_TENANT mode the local seat check is bypassed (early return).
+        with patch("onyx.auth.users.MULTI_TENANT", True):
             enforce_seat_limit(MagicMock())  # should not raise
 
-    def test_cloud_locked_variant_forwards_session_to_billing(self) -> None:
+    def test_cloud_locked_variant_does_not_raise(self) -> None:
+        # FOSS has no cloud billing dispatch; the locked variant simply
+        # delegates to enforce_seat_limit, which is a no-op in MULTI_TENANT.
         from onyx.auth.users import enforce_seat_limit_locked
 
-        captured: dict = {}
-
-        def fake_cloud_enforce(**kwargs: object) -> None:
-            captured.update(kwargs)
-
-        def fake_acquire_lock(*_a: object, **_kw: object) -> None:
-            pass
-
-        def fake_fetch(_module: str, name: str, _default: object) -> object:
-            if name == "acquire_seat_lock":
-                return fake_acquire_lock
-            if name == "enforce_cloud_seat_limit":
-                return fake_cloud_enforce
-            return _default
-
         db_session = MagicMock()
-        with (
-            patch("onyx.auth.users.MULTI_TENANT", True),
-            patch(
-                "onyx.auth.users.get_current_tenant_id",
-                return_value="tenant_xyz",
-            ),
-            patch(
-                "onyx.auth.users.fetch_ee_implementation_or_noop",
-                side_effect=fake_fetch,
-            ),
-        ):
-            enforce_seat_limit_locked(db_session, seats_needed=2)
-
-        assert captured["db_session"] is db_session
-        assert captured["tenant_id"] == "tenant_xyz"
-        assert captured["seats_needed"] == 2
+        with patch("onyx.auth.users.MULTI_TENANT", True):
+            enforce_seat_limit_locked(db_session, seats_needed=2)  # should not raise
 
 
 class TestCaseInsensitiveEmailMatching:
@@ -488,7 +448,7 @@ class TestCaseInsensitiveEmailMatching:
 
     @patch("onyx.auth.users.is_disposable_email", return_value=False)
     @patch("onyx.auth.users.verify_email_domain")
-    @patch("onyx.auth.users.fetch_ee_implementation_or_noop")
+    @patch("onyx.auth.users.async_return_default_schema", new_callable=AsyncMock)
     @patch("onyx.auth.users.get_async_session_context_manager")
     @patch("onyx.auth.users.get_user_count", new_callable=AsyncMock)
     @patch("onyx.auth.users.SQLAlchemyUserAdminDB")
@@ -501,7 +461,7 @@ class TestCaseInsensitiveEmailMatching:
         mock_sql_alchemy_db: MagicMock,
         mock_get_user_count: MagicMock,
         mock_session_manager: MagicMock,
-        mock_fetch_ee: MagicMock,
+        mock_provision_tenant: MagicMock,
         mock_verify_domain: MagicMock,
         mock_is_disposable: MagicMock,  # noqa: ARG002
         mock_async_session: MagicMock,
@@ -510,7 +470,7 @@ class TestCaseInsensitiveEmailMatching:
 
         # Setup
         mock_get_user_count.return_value = 0  # First user - no invite needed
-        mock_fetch_ee.return_value = AsyncMock(return_value="tenant_123")
+        mock_provision_tenant.return_value = "tenant_123"
         mock_session_manager.return_value = _AsyncSessionContextManager(
             mock_async_session
         )
@@ -549,7 +509,7 @@ class TestCaseInsensitiveEmailMatching:
 
     @patch("onyx.auth.users.is_disposable_email")
     @patch("onyx.auth.users.verify_email_domain")
-    @patch("onyx.auth.users.fetch_ee_implementation_or_noop")
+    @patch("onyx.auth.users.async_return_default_schema", new_callable=AsyncMock)
     @patch("onyx.auth.users.get_async_session_context_manager")
     @patch("onyx.auth.users.get_user_count", new_callable=AsyncMock)
     @patch("onyx.auth.users.verify_email_is_invited")
@@ -564,7 +524,7 @@ class TestCaseInsensitiveEmailMatching:
         mock_verify_invited: MagicMock,
         mock_get_user_count: MagicMock,
         mock_session_manager: MagicMock,
-        mock_fetch_ee: MagicMock,
+        mock_provision_tenant: MagicMock,
         mock_verify_domain: MagicMock,
         mock_is_disposable: MagicMock,
         mock_user_create: UserCreate,
@@ -575,7 +535,7 @@ class TestCaseInsensitiveEmailMatching:
         mock_is_disposable.return_value = False
         mock_verify_domain.return_value = None
         mock_get_user_count.return_value = 10  # Existing tenant
-        mock_fetch_ee.return_value = AsyncMock(return_value="existing_tenant_789")
+        mock_provision_tenant.return_value = "existing_tenant_789"
         mock_session_manager.return_value = _AsyncSessionContextManager(
             mock_async_session
         )
@@ -615,14 +575,14 @@ class TestOAuthDottedGmail:
     @patch("onyx.auth.users.MULTI_TENANT", False)
     @patch("onyx.auth.users.verify_email_in_whitelist")
     @patch("onyx.auth.users.verify_email_domain")
-    @patch("onyx.auth.users.fetch_ee_implementation_or_noop")
+    @patch("onyx.auth.users.async_return_default_schema", new_callable=AsyncMock)
     @patch("onyx.auth.users.get_async_session_context_manager")
     @patch("onyx.auth.users.remove_user_from_invited_users")
     async def test_oauth_create_does_not_block_dotted_gmail(
         self,
         mock_remove_invited: MagicMock,  # noqa: ARG002
         mock_session_manager: MagicMock,
-        mock_fetch_ee: MagicMock,
+        mock_provision_tenant: MagicMock,
         mock_verify_domain: MagicMock,
         mock_verify_whitelist: MagicMock,  # noqa: ARG002
         mock_async_session: MagicMock,
@@ -632,7 +592,7 @@ class TestOAuthDottedGmail:
         mock_session_manager.return_value = _AsyncSessionContextManager(
             mock_async_session
         )
-        mock_fetch_ee.return_value = AsyncMock(return_value="test_tenant")
+        mock_provision_tenant.return_value = "test_tenant"
         mock_verify_domain.return_value = None
 
         user_manager = UserManager(MagicMock())

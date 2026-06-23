@@ -75,6 +75,14 @@ def test_trial_tenant_cannot_exceed_invite_limit(*_mocks: None) -> None:
 @patch("onyx.server.manage.users.write_invited_users", return_value=3)
 @patch("onyx.server.manage.users.enforce_seat_limit_locked")
 @patch("onyx.server.manage.users.NUM_FREE_TRIAL_USER_INVITES", 5)
+# TODO(ee-removal): these tests patch
+# onyx.server.manage.users.fetch_ee_implementation_or_noop, which is STILL
+# present and used in manage/users.py (the coupled production collapse was left
+# out of scope there). Removing these patches must happen lockstep with that
+# production rewrite; doing it now would break the call-site assertions below
+# (e.g. test_cloud_seat_decline_propagates_from_add_users relies on the patched
+# fn raising OnyxError from the real call site). On the EE-off path the noop
+# returns None, so behavior is unchanged.
 @patch(
     "onyx.server.manage.users.fetch_ee_implementation_or_noop",
     return_value=lambda *_args: None,

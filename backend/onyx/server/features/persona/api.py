@@ -39,6 +39,7 @@ from onyx.db.persona import get_persona_snapshots_paginated
 from onyx.db.persona import mark_persona_as_deleted
 from onyx.db.persona import mark_persona_as_not_deleted
 from onyx.db.persona import remove_user_from_persona_shares
+from onyx.db.persona import transfer_persona_ownership
 from onyx.db.persona import update_persona_featured
 from onyx.db.persona import update_persona_label
 from onyx.db.persona import update_persona_public_status
@@ -67,7 +68,6 @@ from onyx.server.models import DisplayPriorityRequest
 from onyx.server.settings.store import load_settings
 from onyx.utils.logger import setup_logger
 from onyx.utils.telemetry import mt_cloud_telemetry
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
@@ -501,11 +501,8 @@ def transfer_persona_ownership_endpoint(
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> None:
-    versioned_transfer = fetch_versioned_implementation(
-        "onyx.db.persona", "transfer_persona_ownership"
-    )
     try:
-        versioned_transfer(
+        transfer_persona_ownership(
             persona_id=persona_id,
             user=user,
             db_session=db_session,

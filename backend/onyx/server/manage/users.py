@@ -122,9 +122,6 @@ from onyx.server.utils import BasicAuthenticationError
 from onyx.utils.csv_utils import sanitize_csv_cell
 from onyx.utils.logger import setup_logger
 from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
-)
 from shared_configs.configs import MULTI_TENANT
 from shared_configs.contextvars import get_current_tenant_id
 
@@ -166,13 +163,6 @@ def set_user_role(
             detail="An admin cannot demote themselves from admin role!",
         )
 
-    if requested_role == UserRole.CURATOR:
-        # Remove all curator db relationships before changing role
-        fetch_ee_implementation_or_noop(
-            "onyx.db.user_group",
-            "remove_curator_status__no_commit",
-        )(db_session, user_to_update)
-
     update_user_role(user_to_update, requested_role, db_session)
 
 
@@ -182,13 +172,12 @@ class TestUpsertRequest(BaseModel):
 
 @router.post("/manage/users/test-upsert-user")
 async def test_upsert_user(
-    request: TestUpsertRequest,
+    request: TestUpsertRequest,  # noqa: ARG001
     _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
 ) -> None | FullUserSnapshot:
     """Test endpoint for upsert_saml_user. Only used for integration testing."""
-    user = await fetch_ee_implementation_or_noop(
-        "onyx.server.saml", "upsert_saml_user", None
-    )(email=request.email)
+    # EE-off (FOSS): no SAML implementation is available, so there is no user to upsert.
+    user = None
     return FullUserSnapshot.from_user_model(user) if user else None
 
 
@@ -508,6 +497,12 @@ def bulk_invite_users(
         )
 
     if MULTI_TENANT:
+        # TODO(ee-removal): test_bulk_invite_limit.py patches
+        # onyx.server.manage.users.fetch_ee_implementation_or_noop and
+        # test_cloud_seat_decline_propagates_from_add_users relies on this call
+        # site invoking the patched fn so the OnyxError propagates. Collapsing it
+        # requires a lockstep edit to that test, which is out of scope for this
+        # file. Behavior is unchanged on the EE-off path (noop returns None).
         try:
             fetch_ee_implementation_or_noop(
                 "onyx.server.tenants.provisioning", "add_users_to_tenant", None
@@ -562,6 +557,11 @@ def bulk_invite_users(
 
     if MULTI_TENANT and not DEV_MODE:
         # for billing purposes, write to the control plane about the number of new users
+        # TODO(ee-removal): paired billing-call + rollback-except (remove_users_from_tenant
+        # below) coupled to test_bulk_invite_limit.py, which patches
+        # onyx.server.manage.users.fetch_ee_implementation_or_noop. Collapsing this
+        # try/except needs a lockstep edit to that test (out of scope for this file).
+        # EE-off path is a no-op (noop returns None).
         try:
             logger.info("Registering tenant users")
             fetch_ee_implementation_or_noop(
@@ -620,6 +620,10 @@ def remove_invited_user(
             admin_user_id=current_user.id,
         )
     if MULTI_TENANT:
+        # TODO(ee-removal): coupled to test_bulk_invite_limit.py, which patches
+        # onyx.server.manage.users.fetch_ee_implementation_or_noop
+        # (test_*_remove_invited_rate_limit). Collapsing this needs a lockstep
+        # edit to that test (out of scope for this file). EE-off: noop -> None.
         fetch_ee_implementation_or_noop(
             "onyx.server.tenants.user_mapping", "remove_users_from_tenant", None
         )([user_email.user_email], tenant_id)
@@ -627,6 +631,9 @@ def remove_invited_user(
 
     try:
         if MULTI_TENANT and not DEV_MODE:
+            # TODO(ee-removal): coupled to test_bulk_invite_limit.py patch of
+            # onyx.server.manage.users.fetch_ee_implementation_or_noop; collapsing
+            # needs a lockstep test edit (out of scope). EE-off: noop -> None.
             fetch_ee_implementation_or_noop(
                 "onyx.server.tenants.billing", "register_tenant_users", None
             )(tenant_id, get_live_users_count(db_session))
@@ -663,13 +670,6 @@ def deactivate_user_api(
 
     deactivate_user(user_to_deactivate, db_session)
 
-    # Invalidate license cache so used_seats reflects the new count
-    # Only for self-hosted (non-multi-tenant) deployments
-    if not MULTI_TENANT:
-        fetch_ee_implementation_or_noop(
-            "onyx.db.license", "invalidate_license_cache", None
-        )()
-
 
 @router.delete("/manage/admin/delete-user", tags=PUBLIC_API_TAGS)
 async def delete_user(
@@ -693,19 +693,8 @@ async def delete_user(
     db_session.expunge(user_to_delete)
 
     try:
-        tenant_id = get_current_tenant_id()
-        fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.user_mapping", "remove_users_from_tenant", None
-        )([user_email.user_email], tenant_id)
         delete_user_from_db(user_to_delete, db_session)
         logger.info("Deleted user %s", user_to_delete.email)
-
-        # Invalidate license cache so used_seats reflects the new count
-        # Only for self-hosted (non-multi-tenant) deployments
-        if not MULTI_TENANT:
-            fetch_ee_implementation_or_noop(
-                "onyx.db.license", "invalidate_license_cache", None
-            )()
 
     except Exception as e:
         db_session.rollback()
@@ -732,13 +721,6 @@ def activate_user_api(
     enforce_seat_limit_locked(db_session)
 
     activate_user(user_to_activate, db_session)
-
-    # Invalidate license cache so used_seats reflects the new count
-    # Only for self-hosted (non-multi-tenant) deployments
-    if not MULTI_TENANT:
-        fetch_ee_implementation_or_noop(
-            "onyx.db.license", "invalidate_license_cache", None
-        )()
 
 
 @router.get("/manage/admin/valid-domains")
@@ -906,32 +888,13 @@ def verify_user_logged_in(
 
     token_created_at = _get_token_created_at(user, request, db_session)
 
-    team_name = fetch_ee_implementation_or_noop(
-        "onyx.server.tenants.user_mapping", "get_tenant_id_for_email", None
-    )(user.email)
-
+    # EE-off (FOSS): tenant/user-mapping lookups are EE-only no-ops, so there is
+    # no cross-tenant team, new-tenant, or invitation to surface here.
+    team_name = None
     new_tenant: TenantSnapshot | None = None
     tenant_invitation: TenantSnapshot | None = None
 
-    if MULTI_TENANT:
-        if team_name != get_current_tenant_id():
-            user_count = fetch_ee_implementation_or_noop(
-                "onyx.server.tenants.user_mapping", "get_tenant_count", None
-            )(team_name)
-            new_tenant = TenantSnapshot(tenant_id=team_name, number_of_users=user_count)
-
-        tenant_invitation = fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.user_mapping", "get_tenant_invitation", None
-        )(user.email)
-
-    super_users_list = cast(
-        list[str],
-        fetch_versioned_implementation_with_fallback(
-            "onyx.configs.app_configs",
-            "SUPER_USERS",
-            [],
-        ),
-    )
+    super_users_list: list[str] = []
     memories = [
         MemoryItem(id=memory.id, content=memory.memory_text)
         for memory in get_memories_for_user(user.id, db_session)

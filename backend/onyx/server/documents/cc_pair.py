@@ -54,12 +54,6 @@ from onyx.db.models import User
 from onyx.db.permission_sync_attempt import (
     get_latest_doc_permission_sync_attempt_for_cc_pair,
 )
-from onyx.db.permission_sync_attempt import (
-    get_recent_doc_permission_sync_attempts_for_cc_pair,
-)
-from onyx.db.permission_sync_attempt import (
-    get_relevant_external_group_sync_attempts_for_cc_pair,
-)
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.redis.redis_connector import RedisConnector
@@ -82,7 +76,6 @@ from onyx.server.documents.models import PaginatedReturn
 from onyx.server.models import StatusResponse
 from onyx.server.security.store import get_security_settings
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
@@ -166,13 +159,6 @@ def get_index_attempt_stage_metrics(
     )
 
 
-# Cap on how many recent attempts the per-cc-pair sync-history endpoints
-# will scan when computing pagination. The frontend pages over this fixed
-# pool client-side; older attempts beyond the cap are not surfaced. Matches
-# the previous (pre-CCPairSyncAttemptsResponse) behavior.
-_SYNC_ATTEMPTS_HISTORY_LIMIT = 1000
-
-
 def _get_cc_pair_source_or_raise(
     cc_pair_id: int,
     user: User,
@@ -209,8 +195,8 @@ def _get_cc_pair_source_or_raise(
 @router.get("/admin/cc-pair/{cc_pair_id}/permission-sync-attempts")
 def get_cc_pair_permission_sync_attempts(
     cc_pair_id: int,
-    page_num: int = Query(0, ge=0),
-    page_size: int = Query(10, ge=1, le=1000),
+    page_num: int = Query(0, ge=0),  # noqa: ARG001
+    page_size: int = Query(10, ge=1, le=1000),  # noqa: ARG001
     user: User = Depends(current_curator_or_admin_user),
     db_session: Session = Depends(get_session),
 ) -> CCPairSyncAttemptsResponse[DocPermissionSyncAttemptSnapshot]:
@@ -221,44 +207,22 @@ def get_cc_pair_permission_sync_attempts(
     during indexing). The frontend uses ``applicable`` to distinguish
     "this kind of sync isn't applicable" from "no attempts yet".
     """
-    source = _get_cc_pair_source_or_raise(cc_pair_id, user, db_session)
+    _get_cc_pair_source_or_raise(cc_pair_id, user, db_session)
 
-    source_requires_doc_sync = fetch_ee_implementation_or_noop(
-        "onyx.external_permissions.sync_params",
-        "source_requires_doc_sync",
-        noop_return_value=False,
-    )
-    if not source_requires_doc_sync(source):
-        return CCPairSyncAttemptsResponse[DocPermissionSyncAttemptSnapshot](
-            applicable=False,
-            items=[],
-            total_items=0,
-        )
-
-    all_attempts = get_recent_doc_permission_sync_attempts_for_cc_pair(
-        cc_pair_id=cc_pair_id,
-        limit=_SYNC_ATTEMPTS_HISTORY_LIMIT,
-        db_session=db_session,
-    )
-    start_idx = page_num * page_size
-    end_idx = start_idx + page_size
+    # Doc-permission sync is an EE-only feature; in this edition no source
+    # requires it, so this endpoint is never applicable.
     return CCPairSyncAttemptsResponse[DocPermissionSyncAttemptSnapshot](
-        applicable=True,
-        items=[
-            DocPermissionSyncAttemptSnapshot.from_doc_permission_sync_attempt_db_model(
-                attempt
-            )
-            for attempt in all_attempts[start_idx:end_idx]
-        ],
-        total_items=len(all_attempts),
+        applicable=False,
+        items=[],
+        total_items=0,
     )
 
 
 @router.get("/admin/cc-pair/{cc_pair_id}/external-group-sync-attempts")
 def get_cc_pair_external_group_sync_attempts(
     cc_pair_id: int,
-    page_num: int = Query(0, ge=0),
-    page_size: int = Query(10, ge=1, le=1000),
+    page_num: int = Query(0, ge=0),  # noqa: ARG001
+    page_size: int = Query(10, ge=1, le=1000),  # noqa: ARG001
     user: User = Depends(current_curator_or_admin_user),
     db_session: Session = Depends(get_session),
 ) -> CCPairSyncAttemptsResponse[ExternalGroupSyncAttemptSnapshot]:
@@ -271,37 +235,14 @@ def get_cc_pair_external_group_sync_attempts(
     cc-pair sharing the source are included — see
     ``get_relevant_external_group_sync_attempts_for_cc_pair``.
     """
-    source = _get_cc_pair_source_or_raise(cc_pair_id, user, db_session)
+    _get_cc_pair_source_or_raise(cc_pair_id, user, db_session)
 
-    source_requires_external_group_sync = fetch_ee_implementation_or_noop(
-        "onyx.external_permissions.sync_params",
-        "source_requires_external_group_sync",
-        noop_return_value=False,
-    )
-    if not source_requires_external_group_sync(source):
-        return CCPairSyncAttemptsResponse[ExternalGroupSyncAttemptSnapshot](
-            applicable=False,
-            items=[],
-            total_items=0,
-        )
-
-    all_attempts = get_relevant_external_group_sync_attempts_for_cc_pair(
-        cc_pair_id=cc_pair_id,
-        source=source,
-        limit=_SYNC_ATTEMPTS_HISTORY_LIMIT,
-        db_session=db_session,
-    )
-    start_idx = page_num * page_size
-    end_idx = start_idx + page_size
+    # External-group sync is an EE-only feature; in this edition no source
+    # requires it, so this endpoint is never applicable.
     return CCPairSyncAttemptsResponse[ExternalGroupSyncAttemptSnapshot](
-        applicable=True,
-        items=[
-            ExternalGroupSyncAttemptSnapshot.from_external_group_sync_attempt_db_model(
-                attempt
-            )
-            for attempt in all_attempts[start_idx:end_idx]
-        ],
-        total_items=len(all_attempts),
+        applicable=False,
+        items=[],
+        total_items=0,
     )
 
 
@@ -720,17 +661,6 @@ def associate_credential_to_connector(
 
     The intent of this endpoint is to handle connectors that actually need credentials.
     """
-
-    fetch_ee_implementation_or_noop(
-        "onyx.db.user_group", "validate_object_creation_for_user", None
-    )(
-        db_session=db_session,
-        user=user,
-        target_group_ids=metadata.groups,
-        object_is_public=metadata.access_type == AccessType.PUBLIC,
-        object_is_perm_sync=metadata.access_type == AccessType.SYNC,
-        object_is_new=True,
-    )
 
     try:
         validate_ccpair_for_user(

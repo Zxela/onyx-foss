@@ -16,7 +16,6 @@ from onyx.connectors.factory import validate_ccpair_for_user
 from onyx.db.credentials import alter_credential
 from onyx.db.credentials import cleanup_gmail_credentials
 from onyx.db.credentials import create_credential
-from onyx.db.credentials import CREDENTIAL_PERMISSIONS_TO_IGNORE
 from onyx.db.credentials import delete_credential
 from onyx.db.credentials import delete_credential_for_user
 from onyx.db.credentials import fetch_credential_by_id_for_user
@@ -39,16 +38,11 @@ from onyx.server.documents.private_key_types import ProcessPrivateKeyFileProtoco
 from onyx.server.models import StatusResponse
 from onyx.server.security.store import get_security_settings
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 logger = setup_logger()
 
 
 router = APIRouter(prefix="/manage", tags=PUBLIC_API_TAGS)
-
-
-def _ignore_credential_permissions(source: DocumentSource) -> bool:
-    return source in CREDENTIAL_PERMISSIONS_TO_IGNORE
 
 
 """Admin-only endpoints"""
@@ -145,16 +139,6 @@ def create_credential_from_model(
     user: User = Depends(current_curator_or_admin_user),
     db_session: Session = Depends(get_session),
 ) -> ObjectCreationIdResponse:
-    if not _ignore_credential_permissions(credential_info.source):
-        fetch_ee_implementation_or_noop(
-            "onyx.db.user_group", "validate_object_creation_for_user", None
-        )(
-            db_session=db_session,
-            user=user,
-            target_group_ids=credential_info.groups,
-            object_is_public=credential_info.curator_public,
-        )
-
     # Temporary fix for empty Google App credentials
     if credential_info.source == DocumentSource.GMAIL:
         cleanup_gmail_credentials(db_session=db_session)
@@ -211,16 +195,6 @@ def create_credential_with_private_key(
         name=name,
         source=DocumentSource(source),
     )
-
-    if not _ignore_credential_permissions(DocumentSource(source)):
-        fetch_ee_implementation_or_noop(
-            "onyx.db.user_group", "validate_object_creation_for_user", None
-        )(
-            db_session=db_session,
-            user=user,
-            target_group_ids=groups,
-            object_is_public=curator_public,
-        )
 
     # Temporary fix for empty Google App credentials
     if DocumentSource(source) == DocumentSource.GMAIL:

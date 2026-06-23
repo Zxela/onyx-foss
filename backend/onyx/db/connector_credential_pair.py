@@ -34,7 +34,6 @@ from onyx.db.models import UserGroup__ConnectorCredentialPair
 from onyx.db.models import UserRole
 from onyx.server.models import StatusResponse
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 logger = setup_logger()
 
@@ -545,22 +544,6 @@ def add_credential_to_connector(
     if connector is None:
         raise HTTPException(status_code=404, detail="Connector does not exist")
 
-    if access_type == AccessType.SYNC:
-        fetch_ee_implementation_or_noop(
-            "onyx.utils.tier",
-            "require_business_tier_for_sync_access",
-            noop_return_value=None,
-        )(access_type)
-        if not fetch_ee_implementation_or_noop(
-            "onyx.external_permissions.sync_params",
-            "check_if_valid_sync_source",
-            noop_return_value=True,
-        )(connector.source):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Connector of type {connector.source} does not support SYNC access type",
-            )
-
     if credential is None:
         error_msg = (
             f"Credential {credential_id} does not exist or does not belong to user"
@@ -648,13 +631,6 @@ def remove_credential_from_connector(
     )
 
     if association is not None:
-        fetch_ee_implementation_or_noop(
-            "onyx.db.external_perm",
-            "delete_user__ext_group_for_cc_pair__no_commit",
-        )(
-            db_session=db_session,
-            cc_pair_id=association.id,
-        )
         db_session.delete(association)
         db_session.commit()
         return StatusResponse(

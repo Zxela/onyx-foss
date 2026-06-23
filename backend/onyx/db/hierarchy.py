@@ -15,7 +15,6 @@ from onyx.db.models import Document
 from onyx.db.models import HierarchyNode
 from onyx.db.models import HierarchyNodeByConnectorCredentialPair
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 
 logger = setup_logger()
 
@@ -522,14 +521,11 @@ def get_accessible_hierarchy_nodes_for_source(
     """
     Get hierarchy nodes for a source that are accessible to the user.
 
-    Uses fetch_versioned_implementation to get the appropriate version:
-    - MIT version: Returns all nodes (no permission filtering)
-    - EE version: Filters based on user email and external group IDs
+    MIT version: Returns all nodes (no permission filtering).
     """
-    versioned_fn = fetch_versioned_implementation(
-        "onyx.db.hierarchy", "_get_accessible_hierarchy_nodes_for_source"
+    return _get_accessible_hierarchy_nodes_for_source(
+        db_session, source, user_email, external_group_ids
     )
-    return versioned_fn(db_session, source, user_email, external_group_ids)
 
 
 def get_document_parent_hierarchy_node_ids(
