@@ -28,10 +28,6 @@ from onyx.connectors.google_utils.google_utils import PAGE_TOKEN_KEY
 from onyx.connectors.google_utils.resources import GoogleDriveService
 from onyx.connectors.interfaces import SecondsSinceUnixEpoch
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
-)
-from onyx.utils.variable_functionality import noop_fallback
 
 logger = setup_logger()
 
@@ -188,10 +184,10 @@ def get_shared_drive_name(
 
 
 def get_external_access_for_folder(
-    folder: GoogleDriveFileType,
-    google_domain: str,
-    drive_service: GoogleDriveService,
-    add_prefix: bool = False,
+    folder: GoogleDriveFileType,  # noqa: ARG001
+    google_domain: str,  # noqa: ARG001
+    drive_service: GoogleDriveService,  # noqa: ARG001
+    add_prefix: bool = False,  # noqa: ARG001
 ) -> ExternalAccess:
     """
     Extract ExternalAccess from a folder's permissions.
@@ -213,17 +209,9 @@ def get_external_access_for_folder(
     Returns:
         ExternalAccess with extracted permission info
     """
-    # Try to get the EE implementation
-    get_folder_access_fn = cast(
-        Callable[[GoogleDriveFileType, str, GoogleDriveService, bool], ExternalAccess],
-        fetch_versioned_implementation_with_fallback(
-            "onyx.external_permissions.google_drive.doc_sync",
-            "get_external_access_for_folder",
-            noop_fallback,
-        ),
-    )
-
-    return get_folder_access_fn(folder, google_domain, drive_service, add_prefix)
+    # EE permission resolution is unavailable in FOSS; report no external access
+    # (fail closed) rather than over-permissioning.
+    return ExternalAccess.empty()
 
 
 def _get_fields_for_file_type(field_type: DriveFileFieldType) -> str:

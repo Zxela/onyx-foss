@@ -32,7 +32,6 @@ from onyx.db.models import User
 from onyx.db.models import User__UserGroup
 from onyx.db.models import UserGroup
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 logger = setup_logger()
 
@@ -525,13 +524,6 @@ def delete_user_from_db(
     for oauth_account in user_to_delete.oauth_accounts:
         db_session.delete(oauth_account)
 
-    fetch_ee_implementation_or_noop(
-        "onyx.db.external_perm",
-        "delete_user__ext_group_for_user__no_commit",
-    )(
-        db_session=db_session,
-        user_id=user_to_delete.id,
-    )
     db_session.query(SamlAccount).filter(
         SamlAccount.user_id == user_to_delete.id
     ).delete()

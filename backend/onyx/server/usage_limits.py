@@ -1,7 +1,5 @@
 """Usage limits enforcement for cloud deployments."""
 
-from collections.abc import Callable
-
 from sqlalchemy.orm import Session
 
 from onyx.configs.app_configs import ANTHROPIC_DEFAULT_API_KEY
@@ -13,10 +11,10 @@ from onyx.db.usage import UsageLimitExceededError
 from onyx.db.usage import UsageType
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
+from onyx.server.tenant_usage_limits import get_tenant_usage_limit_overrides
 from onyx.server.tenant_usage_limits import TenantUsageLimitKeys
 from onyx.server.tenant_usage_limits import TenantUsageLimitOverrides
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 from shared_configs.configs import USAGE_LIMIT_API_CALLS_PAID
 from shared_configs.configs import USAGE_LIMIT_API_CALLS_TRIAL
 from shared_configs.configs import USAGE_LIMIT_CHUNKS_INDEXED_PAID
@@ -63,22 +61,16 @@ def is_tenant_on_trial(tenant_id: str) -> bool:  # noqa: ARG001
 
 def is_tenant_on_trial_fn(tenant_id: str) -> bool:
     """
-    Get the versioned implementation of is_tenant_on_trial and call it.
+    Determine if a tenant is currently on a trial subscription.
 
-    Uses fetch_versioned_implementation to get the EE version if available,
-    otherwise falls back to the non-EE version that returns False.
+    Always returns False (non-EE).
     """
-    fn: Callable[[str], bool] = fetch_versioned_implementation(
-        "onyx.server.usage_limits", "is_tenant_on_trial"
-    )
-    return fn(tenant_id)
+    return is_tenant_on_trial(tenant_id)
 
 
 def _get_tenant_override(tenant_id: str, field_name: str) -> int | None:
     """
     Get a tenant-specific usage limit override if available.
-
-    Uses fetch_versioned_implementation to get EE version if available.
 
     Returns:
         - Positive int: Use this specific limit
@@ -86,11 +78,9 @@ def _get_tenant_override(tenant_id: str, field_name: str) -> int | None:
         - None: No override specified, use default env var value
     """
     try:
-        # Try to get EE version that has tenant overrides
-        get_overrides_fn = fetch_versioned_implementation(
-            "onyx.server.tenant_usage_limits", "get_tenant_usage_limit_overrides"
+        overrides: TenantUsageLimitOverrides | None = get_tenant_usage_limit_overrides(
+            tenant_id
         )
-        overrides: TenantUsageLimitOverrides | None = get_overrides_fn(tenant_id)
 
         if overrides is not None:
             # Get the field value - None means not set, use default

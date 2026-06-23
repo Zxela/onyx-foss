@@ -1,20 +1,14 @@
 from typing import Any
-from unittest.mock import Mock
 
 from onyx.configs.constants import MilestoneRecordType
 from onyx.utils import telemetry as telemetry_utils
 
 
 def test_mt_cloud_telemetry_noop_when_not_multi_tenant(monkeypatch: Any) -> None:
-    fetch_impl = Mock()
-    monkeypatch.setattr(
-        telemetry_utils,
-        "fetch_versioned_implementation_with_fallback",
-        fetch_impl,
-    )
     # mt_cloud_telemetry reads the module-local imported symbol, so patch this path.
     monkeypatch.setattr("onyx.utils.telemetry.MULTI_TENANT", False)
 
+    # Should early-return without raising on the FOSS / EE-off path.
     telemetry_utils.mt_cloud_telemetry(
         tenant_id="tenant-1",
         distinct_id="12345678-1234-1234-1234-123456789abc",
@@ -22,81 +16,46 @@ def test_mt_cloud_telemetry_noop_when_not_multi_tenant(monkeypatch: Any) -> None
         properties={"origin": "web"},
     )
 
-    fetch_impl.assert_not_called()
 
-
-def test_mt_cloud_telemetry_calls_event_telemetry_when_multi_tenant(
+def test_mt_cloud_telemetry_noop_when_multi_tenant(
     monkeypatch: Any,
 ) -> None:
-    event_telemetry = Mock()
-    fetch_impl = Mock(return_value=event_telemetry)
-    monkeypatch.setattr(
-        telemetry_utils,
-        "fetch_versioned_implementation_with_fallback",
-        fetch_impl,
-    )
     # mt_cloud_telemetry reads the module-local imported symbol, so patch this path.
     monkeypatch.setattr("onyx.utils.telemetry.MULTI_TENANT", True)
 
+    # In the MIT version there is no PostHog dispatch; the call must still be a
+    # safe no-op (it only builds properties locally) and reference the retained
+    # noop_fallback symbol.
+    assert telemetry_utils.noop_fallback is not None
+
     telemetry_utils.mt_cloud_telemetry(
         tenant_id="tenant-1",
         distinct_id="12345678-1234-1234-1234-123456789abc",
         event=MilestoneRecordType.USER_MESSAGE_SENT,
         properties={"origin": "web"},
-    )
-
-    fetch_impl.assert_called_once_with(
-        module="onyx.utils.telemetry",
-        attribute="event_telemetry",
-        fallback=telemetry_utils.noop_fallback,
-    )
-    event_telemetry.assert_called_once_with(
-        "12345678-1234-1234-1234-123456789abc",
-        MilestoneRecordType.USER_MESSAGE_SENT,
-        {"origin": "web", "tenant_id": "tenant-1"},
     )
 
 
 def test_mt_cloud_identify_noop_when_not_multi_tenant(monkeypatch: Any) -> None:
-    fetch_impl = Mock()
-    monkeypatch.setattr(
-        telemetry_utils,
-        "fetch_versioned_implementation_with_fallback",
-        fetch_impl,
-    )
     monkeypatch.setattr("onyx.utils.telemetry.MULTI_TENANT", False)
 
+    # Should early-return without raising on the FOSS / EE-off path.
     telemetry_utils.mt_cloud_identify(
         distinct_id="12345678-1234-1234-1234-123456789abc",
         properties={"email": "user@example.com"},
     )
 
-    fetch_impl.assert_not_called()
 
-
-def test_mt_cloud_identify_calls_identify_user_when_multi_tenant(
+def test_mt_cloud_identify_noop_when_multi_tenant(
     monkeypatch: Any,
 ) -> None:
-    identify_user = Mock()
-    fetch_impl = Mock(return_value=identify_user)
-    monkeypatch.setattr(
-        telemetry_utils,
-        "fetch_versioned_implementation_with_fallback",
-        fetch_impl,
-    )
     monkeypatch.setattr("onyx.utils.telemetry.MULTI_TENANT", True)
+
+    # In the MIT version there is no PostHog dispatch; the call must still be a
+    # safe no-op and reference the retained noop_fallback symbol.
+    assert telemetry_utils.noop_fallback is not None
 
     telemetry_utils.mt_cloud_identify(
         distinct_id="12345678-1234-1234-1234-123456789abc",
         properties={"email": "user@example.com"},
-    )
-
-    fetch_impl.assert_called_once_with(
-        module="onyx.utils.telemetry",
-        attribute="identify_user",
-        fallback=telemetry_utils.noop_fallback,
-    )
-    identify_user.assert_called_once_with(
-        "12345678-1234-1234-1234-123456789abc",
-        {"email": "user@example.com"},
     )

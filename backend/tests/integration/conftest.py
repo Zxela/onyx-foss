@@ -40,10 +40,8 @@ load_env_vars()
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-# Import `onyx.main` before any fixture triggers fetch_versioned_implementation,
-# so its module body (which calls the dispatcher under
-# set_is_ee_based_on_env_variable()) loads cleanly first and get_application is
-# fully defined before the dispatcher is invoked from elsewhere.
+# Import `onyx.main` early so its module body loads cleanly and
+# get_application is fully defined before any fixture builds the app.
 import onyx.main  # noqa: E402, F401
 from onyx.auth.schemas import UserRole  # noqa: E402
 from onyx.background.celery.apps.client import celery_app  # noqa: E402
@@ -51,9 +49,7 @@ from onyx.configs.constants import DocumentSource  # noqa: E402
 from onyx.db.engine.sql_engine import get_session_with_current_tenant  # noqa: E402
 from onyx.db.engine.sql_engine import SqlEngine  # noqa: E402
 from onyx.db.search_settings import get_current_search_settings  # noqa: E402
-from onyx.utils.variable_functionality import (  # noqa: E402
-    fetch_versioned_implementation,
-)
+from onyx.main import get_application  # noqa: E402
 from shared_configs.configs import MULTI_TENANT  # noqa: E402
 from tests.integration.common_utils import http_client  # noqa: E402
 from tests.integration.common_utils.constants import ADMIN_USER_NAME  # noqa: E402
@@ -283,20 +279,11 @@ def _test_client(
     _start_celery_workers: None,  # noqa: ARG001
     _install_playwright: None,  # noqa: ARG001
 ) -> Generator[TestClient, None, None]:
-    # In-process api_server. Use the versioned dispatcher so MT / EE
-    # builds get ee.onyx.main.get_application — that's the one that
-    # registers add_api_server_tenant_id_middleware (required to populate
-    # CURRENT_TENANT_ID_CONTEXTVAR from the auth cookie in cloud mode).
-    # `set_is_ee_based_on_env_variable()` already ran at onyx.main module
-    # load above; the dispatcher hits the lru_cache and resolves to the
-    # right implementation.
+    # In-process api_server built from onyx.main.get_application.
     # Patch setup_prometheus_metrics to avoid "Duplicated timeseries" if
     # get_application() is ever called more than once in the same process.
     # Use TestClient as a context manager so the real lifespan runs
     # (setup_onyx / file store init / pool metrics).
-    get_application = fetch_versioned_implementation(
-        module="onyx.main", attribute="get_application"
-    )
     with patch("onyx.main.setup_prometheus_metrics"):
         app = get_application()
     with TestClient(app) as test_client:

@@ -90,8 +90,6 @@ from onyx.redis.redis_pool import get_redis_client
 from onyx.server.manage.models import SlackBotTokens
 from onyx.tracing.setup import setup_tracing
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
-from onyx.utils.variable_functionality import set_is_ee_based_on_env_variable
 from shared_configs.configs import DISALLOWED_SLACK_BOT_TENANT_LIST
 from shared_configs.configs import MODEL_SERVER_HOST
 from shared_configs.configs import MODEL_SERVER_PORT
@@ -288,11 +286,7 @@ class SlackbotHandler:
 
         # tenants that are disabled (e.g. their trial is over and haven't subscribed)
         # for non-cloud, this will return an empty set
-        gated_tenants = fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.product_gating",
-            "get_gated_tenants",
-            set(),
-        )()
+        gated_tenants: set[str] = set()
         all_active_tenants = [
             tenant_id
             for tenant_id in get_all_tenant_ids()
@@ -1206,26 +1200,14 @@ def _check_tenant_gated(client: TenantSocketModeClient, req: SocketModeRequest) 
 
     Returns True if blocked.
     """
-    from onyx.server.settings.models import ApplicationStatus
-
     # Multi-tenant path: control plane marks gated tenants in Redis
-    is_gated: bool = fetch_ee_implementation_or_noop(
-        "onyx.server.tenants.product_gating",
-        "is_tenant_gated",
-        False,
-    )(get_current_tenant_id())
+    is_gated: bool = False
 
     # Self-hosted path: check license metadata cache
     if not is_gated:
-        get_cached_metadata = fetch_ee_implementation_or_noop(
-            "onyx.db.license",
-            "get_cached_license_metadata",
-            None,
-        )
-        metadata = get_cached_metadata()
+        metadata = None
         if metadata is not None:
-            if metadata.status == ApplicationStatus.GATED_ACCESS:
-                is_gated = True
+            is_gated = True
 
     if not is_gated:
         return False
@@ -1317,7 +1299,6 @@ if __name__ == "__main__":
     logger.info("Starting SlackbotHandler")
     tenant_handler = SlackbotHandler()
 
-    set_is_ee_based_on_env_variable()
     setup_tracing()
 
     try:

@@ -46,9 +46,6 @@ from onyx.db.engine.tenant_utils import get_all_tenant_ids  # noqa: E402
 from onyx.db.models import CloudEmbeddingProvider  # noqa: E402
 from onyx.db.models import LLMProvider  # noqa: E402
 from onyx.db.models import VoiceProvider  # noqa: E402
-from onyx.utils.variable_functionality import (  # noqa: E402
-    set_is_ee_based_on_env_variable,
-)
 
 PROVIDER_ALIASES: dict[str, set[str]] = {
     "openai": {"openai", "openai_compatible"},
@@ -204,7 +201,6 @@ def main() -> None:
     for p in args.provider:
         provider_names |= PROVIDER_ALIASES[p]
 
-    set_is_ee_based_on_env_variable()
     SqlEngine.init_engine(pool_size=5, max_overflow=2)
 
     if args.dry_run:

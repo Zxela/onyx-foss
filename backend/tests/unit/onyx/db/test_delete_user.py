@@ -31,12 +31,8 @@ def _make_query_chain() -> MagicMock:
 
 
 @patch("onyx.db.users.remove_user_from_invited_users")
-@patch(
-    "onyx.db.users.fetch_ee_implementation_or_noop",
-    return_value=lambda **_kwargs: None,
-)
 def test_delete_user_nulls_out_document_set_ownership(
-    _mock_ee: Any, _mock_remove_invited: Any
+    _mock_remove_invited: Any,
 ) -> None:
     user = _mock_user()
     db_session = MagicMock()
@@ -82,12 +78,8 @@ def test_delete_user_nulls_out_document_set_ownership(
 
 
 @patch("onyx.db.users.remove_user_from_invited_users")
-@patch(
-    "onyx.db.users.fetch_ee_implementation_or_noop",
-    return_value=lambda **_kwargs: None,
-)
 def test_delete_user_cleans_up_join_tables(
-    _mock_ee: Any, _mock_remove_invited: Any
+    _mock_remove_invited: Any,
 ) -> None:
     user = _mock_user()
     db_session = MagicMock()
@@ -110,12 +102,8 @@ def test_delete_user_cleans_up_join_tables(
 
 
 @patch("onyx.db.users.remove_user_from_invited_users")
-@patch(
-    "onyx.db.users.fetch_ee_implementation_or_noop",
-    return_value=lambda **_kwargs: None,
-)
 def test_delete_user_commits_and_removes_invited(
-    _mock_ee: Any, mock_remove_invited: Any
+    mock_remove_invited: Any,
 ) -> None:
     user = _mock_user(email="deleted@example.com")
     db_session = MagicMock()
@@ -129,12 +117,8 @@ def test_delete_user_commits_and_removes_invited(
 
 
 @patch("onyx.db.users.remove_user_from_invited_users")
-@patch(
-    "onyx.db.users.fetch_ee_implementation_or_noop",
-    return_value=lambda **_kwargs: None,
-)
 def test_delete_user_deletes_oauth_accounts(
-    _mock_ee: Any, _mock_remove_invited: Any
+    _mock_remove_invited: Any,
 ) -> None:
     user = _mock_user()
     oauth1 = MagicMock()

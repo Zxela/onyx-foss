@@ -31,6 +31,7 @@ from onyx.auth.schemas import UserUpdate
 from onyx.auth.users import auth_backend
 from onyx.auth.users import create_onyx_oauth_router
 from onyx.auth.users import fastapi_users
+from onyx.auth.users import verify_auth_setting
 from onyx.auth.users import verify_user_auth_secret
 from onyx.cache.interface import CacheBackendType
 from onyx.configs.app_configs import APP_API_PREFIX
@@ -164,9 +165,13 @@ from onyx.utils.middleware import add_onyx_request_id_middleware
 from onyx.utils.telemetry import get_or_generate_uuid
 from onyx.utils.telemetry import optional_telemetry
 from onyx.utils.telemetry import RecordType
-from onyx.utils.variable_functionality import fetch_versioned_implementation
-from onyx.utils.variable_functionality import global_version
-from onyx.utils.variable_functionality import set_is_ee_based_on_env_variable
+
+# Re-exported for backwards compatibility: external callers and tests import
+# `fetch_versioned_implementation` from `onyx.main` (e.g. tests/api/test_api.py)
+# and patch it on this module (e.g. test_engine_disposal.py). Keep it importable.
+from onyx.utils.variable_functionality import (  # noqa: F401
+    fetch_versioned_implementation,
+)
 from shared_configs.configs import CORS_ALLOW_CREDENTIALS
 from shared_configs.configs import CORS_ALLOWED_ORIGIN
 from shared_configs.configs import MULTI_TENANT
@@ -347,9 +352,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
         },
     )
 
-    verify_auth = fetch_versioned_implementation(
-        "onyx.auth.users", "verify_auth_setting"
-    )
+    verify_auth = verify_auth_setting
 
     # Will throw exception if an issue is found
     verify_auth()
@@ -735,8 +738,7 @@ def get_application(lifespan_override: Lifespan | None = None) -> FastAPI:
 
 # NOTE: needs to be outside of the `if __name__ == "__main__"` block so that the
 # app is exportable
-set_is_ee_based_on_env_variable()
-app = fetch_versioned_implementation(module="onyx.main", attribute="get_application")
+app = get_application
 
 
 if __name__ == "__main__":
@@ -746,8 +748,5 @@ if __name__ == "__main__":
         APP_HOST,
         str(APP_PORT),
     )
-
-    if global_version.is_ee_version():
-        logger.notice("Running Enterprise Edition")
 
     uvicorn.run(app, host=APP_HOST, port=APP_PORT)

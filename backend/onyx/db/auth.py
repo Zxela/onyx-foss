@@ -1,5 +1,4 @@
 from collections.abc import AsyncGenerator
-from collections.abc import Callable
 from typing import Any
 from typing import Dict
 from typing import TypeVar
@@ -24,9 +23,6 @@ from onyx.db.engine.async_sql_engine import get_async_session_context_manager
 from onyx.db.models import AccessToken
 from onyx.db.models import OAuthAccount
 from onyx.db.models import User
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
-)
 
 T = TypeVar("T", bound=tuple[Any, ...])
 
@@ -34,12 +30,7 @@ T = TypeVar("T", bound=tuple[Any, ...])
 def get_default_admin_user_emails() -> list[str]:
     """Returns a list of emails who should default to Admin role.
     Only used in the EE version. For MIT, just return empty list."""
-    get_default_admin_user_emails_fn: Callable[[], list[str]] = (
-        fetch_versioned_implementation_with_fallback(
-            "onyx.auth.users", "get_default_admin_user_emails_", lambda: list[str]()
-        )
-    )
-    return get_default_admin_user_emails_fn()
+    return []
 
 
 def _add_live_user_count_where_clause(

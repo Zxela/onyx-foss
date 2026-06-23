@@ -10,7 +10,6 @@ from onyx.db.engine.tenant_utils import get_all_tenant_ids
 from onyx.onyxbot.discord.exceptions import CacheError
 from onyx.utils.logger import setup_logger
 from onyx.utils.threadpool_concurrency import run_functions_tuples_in_parallel
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from shared_configs.contextvars import CURRENT_TENANT_ID_CONTEXTVAR
 
 logger = setup_logger()
@@ -51,11 +50,7 @@ class DiscordCacheManager:
             new_api_keys: dict[str, str] = {}
 
             try:
-                gated = fetch_ee_implementation_or_noop(
-                    "onyx.server.tenants.product_gating",
-                    "get_gated_tenants",
-                    set(),
-                )()
+                gated: set[str] = set()
 
                 tenant_ids = [
                     tenant_id

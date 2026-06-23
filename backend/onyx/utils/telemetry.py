@@ -7,7 +7,6 @@ from typing import Any
 import requests
 
 from onyx.configs.app_configs import DISABLE_TELEMETRY
-from onyx.configs.app_configs import ENTERPRISE_EDITION_ENABLED
 from onyx.configs.constants import KV_CUSTOMER_UUID_KEY
 from onyx.configs.constants import KV_INSTANCE_DOMAIN_KEY
 from onyx.configs.constants import MilestoneRecordType
@@ -17,10 +16,10 @@ from onyx.key_value_store.factory import get_kv_store
 from onyx.key_value_store.interface import KvKeyNotFoundError
 from onyx.key_value_store.interface import unwrap_str
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
-)
-from onyx.utils.variable_functionality import noop_fallback
+
+# Re-exported for backward compatibility; referenced by tests via
+# onyx.utils.telemetry.noop_fallback.
+from onyx.utils.variable_functionality import noop_fallback  # noqa: F401
 from shared_configs.configs import MULTI_TENANT
 from shared_configs.contextvars import get_current_tenant_id
 
@@ -125,8 +124,6 @@ def optional_telemetry(
                     "customer_uuid": customer_uuid,
                     "is_cloud": MULTI_TENANT,
                 }
-                if ENTERPRISE_EDITION_ENABLED:
-                    payload["instance_domain"] = _get_or_generate_instance_domain()
                 requests.post(
                     _DANSWER_TELEMETRY_ENDPOINT,
                     headers={"Content-Type": "application/json"},
@@ -151,8 +148,8 @@ def optional_telemetry(
 
 def mt_cloud_telemetry(
     tenant_id: str,
-    distinct_id: str,
-    event: MilestoneRecordType,
+    distinct_id: str,  # noqa: ARG001
+    event: MilestoneRecordType,  # noqa: ARG001
     properties: dict[str, Any] | None = None,
 ) -> None:
     if not MULTI_TENANT:
@@ -171,41 +168,24 @@ def mt_cloud_telemetry(
     # MIT version should not need to include any Posthog code
     # This is only for Onyx MT Cloud, this code should also never be hit, no reason for any orgs to
     # be running the Multi Tenant version of Onyx.
-    fetch_versioned_implementation_with_fallback(
-        module="onyx.utils.telemetry",
-        attribute="event_telemetry",
-        fallback=noop_fallback,
-    )(distinct_id, event, all_properties)
 
 
 def mt_cloud_identify(
-    distinct_id: str,
-    properties: dict[str, Any] | None = None,
+    distinct_id: str,  # noqa: ARG001
+    properties: dict[str, Any] | None = None,  # noqa: ARG001
 ) -> None:
     """Create/update a PostHog person profile (Cloud only)."""
     if not MULTI_TENANT:
         return
 
-    fetch_versioned_implementation_with_fallback(
-        module="onyx.utils.telemetry",
-        attribute="identify_user",
-        fallback=noop_fallback,
-    )(distinct_id, properties)
-
 
 def mt_cloud_alias(
-    distinct_id: str,
-    anonymous_id: str,
+    distinct_id: str,  # noqa: ARG001
+    anonymous_id: str,  # noqa: ARG001
 ) -> None:
     """Link an anonymous distinct_id to an identified user (Cloud only)."""
     if not MULTI_TENANT:
         return
-
-    fetch_versioned_implementation_with_fallback(
-        module="onyx.utils.posthog_client",
-        attribute="alias_user",
-        fallback=noop_fallback,
-    )(distinct_id, anonymous_id)
 
 
 def mt_cloud_get_anon_id(request: Any) -> str | None:
@@ -213,8 +193,4 @@ def mt_cloud_get_anon_id(request: Any) -> str | None:
     if not MULTI_TENANT or not request:
         return None
 
-    return fetch_versioned_implementation_with_fallback(
-        module="onyx.utils.posthog_client",
-        attribute="get_anon_id_from_request",
-        fallback=noop_fallback,
-    )(request)
+    return None

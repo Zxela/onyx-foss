@@ -139,7 +139,6 @@ from onyx.utils.logger import setup_logger
 from onyx.utils.telemetry import mt_cloud_telemetry
 from onyx.utils.threadpool_concurrency import CallableProtocol
 from onyx.utils.threadpool_concurrency import run_functions_tuples_in_parallel
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
@@ -1546,16 +1545,6 @@ def create_connector_from_model(
     try:
         _validate_connector_allowed(connector_data.source)
 
-        fetch_ee_implementation_or_noop(
-            "onyx.db.user_group", "validate_object_creation_for_user", None
-        )(
-            db_session=db_session,
-            user=user,
-            target_group_ids=connector_data.groups,
-            object_is_public=connector_data.access_type == AccessType.PUBLIC,
-            object_is_perm_sync=connector_data.access_type == AccessType.SYNC,
-            object_is_new=True,
-        )
         connector_base = connector_data.to_connector_base()
         connector_response = create_connector(
             db_session=db_session,
@@ -1582,15 +1571,6 @@ def create_connector_with_mock_credential(
 ) -> StatusResponse:
     tenant_id = get_current_tenant_id()
 
-    fetch_ee_implementation_or_noop(
-        "onyx.db.user_group", "validate_object_creation_for_user", None
-    )(
-        db_session=db_session,
-        user=user,
-        target_group_ids=connector_data.groups,
-        object_is_public=connector_data.access_type == AccessType.PUBLIC,
-        object_is_perm_sync=connector_data.access_type == AccessType.SYNC,
-    )
     try:
         _validate_connector_allowed(connector_data.source)
         connector_response = create_connector(
@@ -1664,22 +1644,11 @@ def create_connector_with_mock_credential(
 def update_connector_from_model(
     connector_id: int,
     connector_data: ConnectorUpdateRequest,
-    user: User = Depends(current_curator_or_admin_user),
+    user: User = Depends(current_curator_or_admin_user),  # noqa: ARG001
     db_session: Session = Depends(get_session),
 ) -> ConnectorSnapshot | StatusResponse[int]:
-    cc_pair = fetch_connector_credential_pair_for_connector(db_session, connector_id)
     try:
         _validate_connector_allowed(connector_data.source)
-        fetch_ee_implementation_or_noop(
-            "onyx.db.user_group", "validate_object_creation_for_user", None
-        )(
-            db_session=db_session,
-            user=user,
-            target_group_ids=connector_data.groups,
-            object_is_public=connector_data.access_type == AccessType.PUBLIC,
-            object_is_perm_sync=connector_data.access_type == AccessType.SYNC,
-            object_is_owned_by_user=cc_pair and user and cc_pair.creator_id == user.id,
-        )
         connector_base = connector_data.to_connector_base()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

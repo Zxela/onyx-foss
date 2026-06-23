@@ -66,10 +66,6 @@ from onyx.server.metrics.deletion_metrics import inc_deletion_completed
 from onyx.server.metrics.deletion_metrics import inc_deletion_fence_reset
 from onyx.server.metrics.deletion_metrics import inc_deletion_started
 from onyx.server.metrics.deletion_metrics import observe_deletion_taskset_duration
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
-)
-from onyx.utils.variable_functionality import noop_fallback
 
 
 class TaskDependencyError(RuntimeError):
@@ -481,17 +477,6 @@ def monitor_connector_deletion_taskset(
                 db_session=db_session,
                 connector_id=cc_pair.connector_id,
                 credential_id=cc_pair.credential_id,
-            )
-
-            # user groups
-            cleanup_user_groups = fetch_versioned_implementation_with_fallback(
-                "onyx.db.user_group",
-                "delete_user_group_cc_pair_relationship__no_commit",
-                noop_fallback,
-            )
-            cleanup_user_groups(
-                cc_pair_id=cc_pair_id,
-                db_session=db_session,
             )
 
             # delete orphan tags

@@ -1,40 +1,23 @@
-from collections.abc import Callable
-from typing import cast
-
 from github import Github
 from github.Repository import Repository
 
 from onyx.access.models import ExternalAccess
 from onyx.connectors.github.models import SerializedRepository
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_versioned_implementation
-from onyx.utils.variable_functionality import global_version
 
 logger = setup_logger()
 
 
 def get_external_access_permission(
-    repo: Repository, github_client: Github
+    repo: Repository,  # noqa: ARG001
+    github_client: Github,  # noqa: ARG001
 ) -> ExternalAccess:
     """
     Get the external access permission for a repository.
     This functionality requires Enterprise Edition.
     """
-    # Check if EE is enabled
-    if not global_version.is_ee_version():
-        # For the MIT version, return an empty ExternalAccess (private document)
-        return ExternalAccess.empty()
-
-    # Fetch the EE implementation
-    ee_get_external_access_permission = cast(
-        Callable[[Repository, Github, bool], ExternalAccess],
-        fetch_versioned_implementation(
-            "onyx.external_permissions.github.utils",
-            "get_external_access_permission",
-        ),
-    )
-
-    return ee_get_external_access_permission(repo, github_client, True)
+    # For the MIT version, return an empty ExternalAccess (private document)
+    return ExternalAccess.empty()
 
 
 def deserialize_repository(

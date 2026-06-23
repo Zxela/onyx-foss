@@ -39,7 +39,6 @@ from onyx.db.indexing_coordination import IndexingCoordination
 from onyx.redis.redis_connector import RedisConnector
 from onyx.server.metrics.connector_health_metrics import on_index_attempt_status_change
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import global_version
 from shared_configs.configs import SENTRY_CELERY_TRACES_SAMPLE_RATE
 from shared_configs.configs import SENTRY_DSN
 
@@ -417,7 +416,7 @@ def docfetching_proxy_task(
         index_attempt_id,
         cc_pair_id,
         search_settings_id,
-        global_version.is_ee_version(),
+        False,
         tenant_id,
     )
 

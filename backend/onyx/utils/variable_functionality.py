@@ -1,9 +1,7 @@
 import functools
 import importlib
 import inspect
-import os
 from typing import Any
-from typing import TypeVar
 
 from onyx.configs.app_configs import API_SERVER_HOST
 from onyx.configs.app_configs import API_SERVER_PROTOCOL
@@ -11,7 +9,6 @@ from onyx.configs.app_configs import API_SERVER_URL_OVERRIDE_FOR_HTTP_REQUESTS
 from onyx.configs.app_configs import APP_API_PREFIX
 from onyx.configs.app_configs import APP_PORT
 from onyx.configs.app_configs import DEV_MODE
-from onyx.configs.app_configs import ENTERPRISE_EDITION_ENABLED
 from onyx.utils.logger import setup_logger
 
 logger = setup_logger()
@@ -32,38 +29,6 @@ class OnyxVersion:
 
 
 global_version = OnyxVersion()
-
-# This is the FOSS build: the Enterprise Edition code (ee.onyx.*) has been
-# removed, so EE mode must default OFF. With it on, fetch_versioned /
-# fetch_ee_implementation_or_noop would try to import the absent ee modules and
-# crash at startup (e.g. onyx.server.tenants for control_plane_dep). Defaulting
-# this to "false" keeps the build on the community code paths.
-_LICENSE_ENFORCEMENT_ENABLED = (
-    os.environ.get("LICENSE_ENFORCEMENT_ENABLED", "false").lower() == "true"
-)
-
-
-def set_is_ee_based_on_env_variable() -> None:
-    """Enable Enterprise Edition based on environment configuration.
-
-    EE is enabled if either:
-    - ENABLE_PAID_ENTERPRISE_EDITION_FEATURES=true (legacy/rollout flag)
-    - LICENSE_ENFORCEMENT_ENABLED=true (license-based gating)
-
-    When LICENSE_ENFORCEMENT_ENABLED is true, EE code is loaded but access
-    to EE-only features is controlled by the license enforcement middleware.
-    """
-    if global_version.is_ee_version():
-        return
-
-    if ENTERPRISE_EDITION_ENABLED:
-        logger.notice(
-            "Enterprise Edition enabled via ENABLE_PAID_ENTERPRISE_EDITION_FEATURES"
-        )
-        global_version.set_ee()
-    elif _LICENSE_ENFORCEMENT_ENABLED:
-        logger.notice("Enterprise Edition enabled via LICENSE_ENFORCEMENT_ENABLED")
-        global_version.set_ee()
 
 
 @functools.lru_cache(maxsize=128)
@@ -117,31 +82,6 @@ def fetch_versioned_implementation(module: str, attribute: str) -> Any:
             return getattr(importlib.import_module(module), attribute)
 
         raise
-
-
-T = TypeVar("T")
-
-
-def fetch_versioned_implementation_with_fallback(
-    module: str, attribute: str, fallback: T
-) -> T:
-    """
-    Attempts to fetch a versioned implementation of a specified attribute from a given module.
-    If the attempt fails (e.g., due to an import error or missing attribute), the function logs
-    a warning and returns the provided fallback implementation.
-
-    Args:
-        module (str): The name of the module from which to fetch the attribute.
-        attribute (str): The name of the attribute to fetch from the module.
-        fallback (T): The fallback implementation to return if fetching the attribute fails.
-
-    Returns:
-        T: The fetched implementation if successful, otherwise the provided fallback.
-    """
-    try:
-        return fetch_versioned_implementation(module, attribute)
-    except Exception:
-        return fallback
 
 
 def noop_fallback(*args: Any, **kwargs: Any) -> None:

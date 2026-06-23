@@ -32,7 +32,6 @@ from onyx.db.models import IndexAttemptStageMetric
 from onyx.db.models import IndexingStatus
 from onyx.db.models import TaskStatus
 from onyx.server.federated.models import FederatedConnectorStatus
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 
 class DocumentSyncStatus(BaseModel):
@@ -412,23 +411,8 @@ class CCPairFullInfo(BaseModel):
     def _get_last_full_permission_sync(
         cls, cc_pair_model: ConnectorCredentialPair
     ) -> datetime | None:
-        check_if_source_requires_external_group_sync = fetch_ee_implementation_or_noop(
-            "onyx.external_permissions.sync_params",
-            "source_requires_external_group_sync",
-            noop_return_value=False,
-        )
-        check_if_source_requires_doc_sync = fetch_ee_implementation_or_noop(
-            "onyx.external_permissions.sync_params",
-            "source_requires_doc_sync",
-            noop_return_value=False,
-        )
-
-        needs_group_sync = check_if_source_requires_external_group_sync(
-            cc_pair_model.connector.source
-        )
-        needs_doc_sync = check_if_source_requires_doc_sync(
-            cc_pair_model.connector.source
-        )
+        needs_group_sync = False
+        needs_doc_sync = False
 
         last_group_sync = (
             cc_pair_model.last_time_external_group_sync

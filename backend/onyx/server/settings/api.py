@@ -35,9 +35,6 @@ from onyx.server.settings.store import load_settings
 from onyx.server.settings.store import store_settings
 from onyx.utils.logger import setup_logger
 from onyx.utils.platform_utils import is_running_in_container
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
-)
 from shared_configs.configs import MULTI_TENANT
 
 logger = setup_logger()
@@ -85,12 +82,7 @@ def fetch_settings(
     except KvKeyNotFoundError:
         needs_reindexing = False
 
-    apply_fn = fetch_versioned_implementation_with_fallback(
-        "onyx.server.settings.api",
-        "apply_license_status_to_settings",
-        apply_license_status_to_settings,
-    )
-    general_settings = apply_fn(general_settings)
+    general_settings = apply_license_status_to_settings(general_settings)
 
     # Check if Onyx Craft is enabled for this user (used for server-side redirects)
     onyx_craft_enabled_for_user = is_onyx_craft_enabled(user) if user else False
