@@ -165,13 +165,6 @@ from onyx.utils.middleware import add_onyx_request_id_middleware
 from onyx.utils.telemetry import get_or_generate_uuid
 from onyx.utils.telemetry import optional_telemetry
 from onyx.utils.telemetry import RecordType
-
-# Re-exported for backwards compatibility: external callers and tests import
-# `fetch_versioned_implementation` from `onyx.main` (e.g. tests/api/test_api.py)
-# and patch it on this module (e.g. test_engine_disposal.py). Keep it importable.
-from onyx.utils.variable_functionality import (  # noqa: F401
-    fetch_versioned_implementation,
-)
 from shared_configs.configs import CORS_ALLOW_CREDENTIALS
 from shared_configs.configs import CORS_ALLOWED_ORIGIN
 from shared_configs.configs import MULTI_TENANT

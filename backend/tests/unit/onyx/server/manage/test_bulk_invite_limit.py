@@ -66,7 +66,6 @@ def test_trial_tenant_cannot_exceed_invite_limit(*_mocks: None) -> None:
 @patch("onyx.server.manage.users.enforce_invite_rate_limit")
 @patch("onyx.server.manage.users.get_redis_client")
 @patch("onyx.server.manage.users.MULTI_TENANT", True)
-@patch("onyx.server.manage.users.DEV_MODE", True)
 @patch("onyx.server.manage.users.ENABLE_EMAIL_INVITES", False)
 @patch("onyx.server.manage.users.is_tenant_on_trial_fn", return_value=True)
 @patch("onyx.server.manage.users.get_current_tenant_id", return_value="test_tenant")
@@ -75,18 +74,6 @@ def test_trial_tenant_cannot_exceed_invite_limit(*_mocks: None) -> None:
 @patch("onyx.server.manage.users.write_invited_users", return_value=3)
 @patch("onyx.server.manage.users.enforce_seat_limit_locked")
 @patch("onyx.server.manage.users.NUM_FREE_TRIAL_USER_INVITES", 5)
-# TODO(ee-removal): these tests patch
-# onyx.server.manage.users.fetch_ee_implementation_or_noop, which is STILL
-# present and used in manage/users.py (the coupled production collapse was left
-# out of scope there). Removing these patches must happen lockstep with that
-# production rewrite; doing it now would break the call-site assertions below
-# (e.g. test_cloud_seat_decline_propagates_from_add_users relies on the patched
-# fn raising OnyxError from the real call site). On the EE-off path the noop
-# returns None, so behavior is unchanged.
-@patch(
-    "onyx.server.manage.users.fetch_ee_implementation_or_noop",
-    return_value=lambda *_args: None,
-)
 def test_trial_tenant_can_invite_within_limit(*_mocks: None) -> None:
     """Post-upsert total of 3 fits under cap=5 — must succeed."""
     emails = ["user1@example.com", "user2@example.com", "user3@example.com"]
@@ -100,7 +87,6 @@ def test_trial_tenant_can_invite_within_limit(*_mocks: None) -> None:
 @patch("onyx.server.manage.users.get_session_with_shared_schema")
 @patch("onyx.server.manage.users.enforce_invite_rate_limit")
 @patch("onyx.server.manage.users.MULTI_TENANT", True)
-@patch("onyx.server.manage.users.DEV_MODE", True)
 @patch("onyx.server.manage.users.ENABLE_EMAIL_INVITES", False)
 @patch("onyx.server.manage.users.is_tenant_on_trial_fn", return_value=False)
 @patch("onyx.server.manage.users.get_current_tenant_id", return_value="test_tenant")
@@ -108,12 +94,7 @@ def test_trial_tenant_can_invite_within_limit(*_mocks: None) -> None:
 @patch("onyx.server.manage.users.get_all_users", return_value=[])
 @patch("onyx.server.manage.users.write_invited_users", return_value=3)
 @patch("onyx.server.manage.users.enforce_seat_limit_locked")
-@patch(
-    "onyx.server.manage.users.fetch_ee_implementation_or_noop",
-    return_value=lambda *_args: None,
-)
 def test_paid_tenant_bypasses_invite_counter(
-    _ee_fetch: MagicMock,
     _seat_limit: MagicMock,
     _write_invited: MagicMock,
     _get_all_users: MagicMock,
@@ -203,15 +184,9 @@ def test_email_invite_status_send_failed(*_mocks: None) -> None:
 @patch("onyx.server.manage.users.enforce_remove_invited_rate_limit")
 @patch("onyx.server.manage.users.remove_user_from_invited_users", return_value=0)
 @patch("onyx.server.manage.users.MULTI_TENANT", True)
-@patch("onyx.server.manage.users.DEV_MODE", True)
 @patch("onyx.server.manage.users.is_tenant_on_trial_fn", return_value=False)
 @patch("onyx.server.manage.users.get_current_tenant_id", return_value="test_tenant")
-@patch(
-    "onyx.server.manage.users.fetch_ee_implementation_or_noop",
-    return_value=lambda *_args: None,
-)
 def test_paid_tenant_bypasses_remove_invited_rate_limit(
-    _ee_fetch: MagicMock,
     _get_tenant_id: MagicMock,
     _is_trial: MagicMock,
     _remove_from_invited: MagicMock,
@@ -230,15 +205,9 @@ def test_paid_tenant_bypasses_remove_invited_rate_limit(
 @patch("onyx.server.manage.users.remove_user_from_invited_users", return_value=0)
 @patch("onyx.server.manage.users.get_redis_client")
 @patch("onyx.server.manage.users.MULTI_TENANT", True)
-@patch("onyx.server.manage.users.DEV_MODE", True)
 @patch("onyx.server.manage.users.is_tenant_on_trial_fn", return_value=True)
 @patch("onyx.server.manage.users.get_current_tenant_id", return_value="test_tenant")
-@patch(
-    "onyx.server.manage.users.fetch_ee_implementation_or_noop",
-    return_value=lambda *_args: None,
-)
 def test_trial_tenant_hits_remove_invited_rate_limit(
-    _ee_fetch: MagicMock,
     _get_tenant_id: MagicMock,
     _is_trial: MagicMock,
     _get_redis: MagicMock,
@@ -258,24 +227,19 @@ def test_trial_tenant_hits_remove_invited_rate_limit(
 
 
 @patch("onyx.server.manage.users.ENABLE_EMAIL_INVITES", False)
-@patch("onyx.server.manage.users.DEV_MODE", True)
 @patch("onyx.server.manage.users.MULTI_TENANT", True)
 @patch("onyx.server.manage.users.is_tenant_on_trial_fn", return_value=False)
 @patch("onyx.server.manage.users.get_current_tenant_id", return_value="test_tenant")
 @patch("onyx.server.manage.users.get_invited_users", return_value=[])
 @patch("onyx.server.manage.users.get_all_users", return_value=[])
 @patch("onyx.server.manage.users.write_invited_users", return_value=1)
-@patch(
-    "onyx.server.manage.users.fetch_ee_implementation_or_noop",
-    return_value=lambda *_args: None,
-)
 @patch("onyx.server.manage.users.enforce_seat_limit_locked")
 def test_cloud_invite_skips_request_session_seat_lock(
     mock_enforce: MagicMock, *_mocks: MagicMock
 ) -> None:
-    """Cloud must not take the seat advisory lock on the request session —
-    enforcement lives in add_users_to_tenant. A second acquisition here
-    self-deadlocks the request (two connections, one tenant lock key)."""
+    """Cloud (multi-tenant) must not take the seat advisory lock on the request
+    session — a second acquisition self-deadlocks the request (two connections,
+    one tenant lock key)."""
     bulk_invite_users(emails=["new@example.com"], current_user=MagicMock())
 
     mock_enforce.assert_not_called()
@@ -294,26 +258,3 @@ def test_self_hosted_invite_still_enforces_seat_limit(
     bulk_invite_users(emails=["new@example.com"], current_user=MagicMock())
 
     mock_enforce.assert_called_once()
-
-
-@patch("onyx.server.manage.users.MULTI_TENANT", True)
-@patch("onyx.server.manage.users.is_tenant_on_trial_fn", return_value=False)
-@patch("onyx.server.manage.users.get_current_tenant_id", return_value="test_tenant")
-@patch("onyx.server.manage.users.get_invited_users", return_value=[])
-@patch("onyx.server.manage.users.get_all_users", return_value=[])
-@patch("onyx.server.manage.users.enforce_seat_limit_locked")
-def test_cloud_seat_decline_propagates_from_add_users(*_mocks: MagicMock) -> None:
-    """A seat/billing decline raised inside add_users_to_tenant must reach
-    the caller as OnyxError — the generic except must not swallow it."""
-
-    def _declining_add_users(*_args: object) -> None:
-        raise OnyxError(OnyxErrorCode.SEAT_LIMIT_EXCEEDED, "card declined")
-
-    with patch(
-        "onyx.server.manage.users.fetch_ee_implementation_or_noop",
-        return_value=_declining_add_users,
-    ):
-        with pytest.raises(OnyxError) as exc_info:
-            bulk_invite_users(emails=["new@example.com"], current_user=MagicMock())
-
-    assert exc_info.value.error_code == OnyxErrorCode.SEAT_LIMIT_EXCEEDED

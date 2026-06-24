@@ -38,7 +38,6 @@ from onyx.auth.users import scope_exempt
 from onyx.configs.app_configs import AUTH_BACKEND
 from onyx.configs.app_configs import AUTH_TYPE
 from onyx.configs.app_configs import AuthBackend
-from onyx.configs.app_configs import DEV_MODE
 from onyx.configs.app_configs import EMAIL_CONFIGURED
 from onyx.configs.app_configs import ENABLE_EMAIL_INVITES
 from onyx.configs.app_configs import NUM_FREE_TRIAL_USER_INVITES
@@ -48,7 +47,6 @@ from onyx.configs.app_configs import USER_AUTH_SECRET
 from onyx.configs.constants import FASTAPI_USERS_AUTH_COOKIE_NAME
 from onyx.configs.constants import PUBLIC_API_TAGS
 from onyx.db.api_key import is_api_key_email_address
-from onyx.db.auth import get_live_users_count
 from onyx.db.engine.sql_engine import get_session
 from onyx.db.engine.sql_engine import get_session_with_shared_schema
 from onyx.db.enums import AccountType
@@ -121,7 +119,6 @@ from onyx.server.usage_limits import is_tenant_on_trial_fn
 from onyx.server.utils import BasicAuthenticationError
 from onyx.utils.csv_utils import sanitize_csv_cell
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from shared_configs.configs import MULTI_TENANT
 from shared_configs.contextvars import get_current_tenant_id
 
@@ -496,24 +493,6 @@ def bulk_invite_users(
             tenant_id=tenant_id,
         )
 
-    if MULTI_TENANT:
-        # TODO(ee-removal): test_bulk_invite_limit.py patches
-        # onyx.server.manage.users.fetch_ee_implementation_or_noop and
-        # test_cloud_seat_decline_propagates_from_add_users relies on this call
-        # site invoking the patched fn so the OnyxError propagates. Collapsing it
-        # requires a lockstep edit to that test, which is out of scope for this
-        # file. Behavior is unchanged on the EE-off path (noop returns None).
-        try:
-            fetch_ee_implementation_or_noop(
-                "onyx.server.tenants.provisioning", "add_users_to_tenant", None
-            )(new_invited_emails, tenant_id)
-        except OnyxError:
-            # Seat-limit / billing declines from the cloud check must reach
-            # the caller now that this is the only enforcement point.
-            raise
-        except Exception as e:
-            logger.error("Failed to add users to tenant %s: %s", tenant_id, str(e))
-
     initial_invited_users = get_invited_users()
 
     all_emails = list(set(new_invited_emails) | set(initial_invited_users))
@@ -555,50 +534,6 @@ def bulk_invite_users(
             logger.error("Error sending email invite to invited users: %s", e)
             email_invite_status = EmailInviteStatus.SEND_FAILED
 
-    if MULTI_TENANT and not DEV_MODE:
-        # for billing purposes, write to the control plane about the number of new users
-        # TODO(ee-removal): paired billing-call + rollback-except (remove_users_from_tenant
-        # below) coupled to test_bulk_invite_limit.py, which patches
-        # onyx.server.manage.users.fetch_ee_implementation_or_noop. Collapsing this
-        # try/except needs a lockstep edit to that test (out of scope for this file).
-        # EE-off path is a no-op (noop returns None).
-        try:
-            logger.info("Registering tenant users")
-            fetch_ee_implementation_or_noop(
-                "onyx.server.tenants.billing", "register_tenant_users", None
-            )(tenant_id, get_live_users_count(db_session))
-        except Exception as e:
-            logger.error("Failed to register tenant users: %s", str(e))
-            logger.info(
-                "Reverting changes: removing users from tenant and resetting invited users"
-            )
-            try:
-                write_invited_users(initial_invited_users)  # Reset to original state
-                fetch_ee_implementation_or_noop(
-                    "onyx.server.tenants.user_mapping", "remove_users_from_tenant", None
-                )(new_invited_emails, tenant_id)
-            finally:
-                # Release the counter reservation regardless of whether the KV /
-                # user-mapping reverts above succeeded — otherwise a double-fault
-                # (billing failure + revert failure) permanently inflates the
-                # counter for an invite batch the system considers rolled back.
-                if trial_invite_reservation > 0:
-                    try:
-                        with get_session_with_shared_schema() as comp_session:
-                            release_trial_invites(
-                                comp_session, tenant_id, trial_invite_reservation
-                            )
-                            comp_session.commit()
-                    except Exception as comp_err:
-                        logger.error(
-                            "tenant_invite_counter release failed for tenant=%s, "
-                            "slots burned=%d: %s",
-                            tenant_id,
-                            trial_invite_reservation,
-                            comp_err,
-                        )
-            raise e
-
     return BulkInviteResponse(
         invited_count=number_of_invited_users,
         email_invite_status=email_invite_status,
@@ -611,7 +546,7 @@ def remove_invited_user(
     current_user: User = Depends(
         require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)
     ),
-    db_session: Session = Depends(get_session),
+    db_session: Session = Depends(get_session),  # noqa: ARG001
 ) -> int:
     tenant_id = get_current_tenant_id()
     if MULTI_TENANT and is_tenant_on_trial_fn(tenant_id):
@@ -619,30 +554,7 @@ def remove_invited_user(
             redis_client=get_redis_client(tenant_id=tenant_id),
             admin_user_id=current_user.id,
         )
-    if MULTI_TENANT:
-        # TODO(ee-removal): coupled to test_bulk_invite_limit.py, which patches
-        # onyx.server.manage.users.fetch_ee_implementation_or_noop
-        # (test_*_remove_invited_rate_limit). Collapsing this needs a lockstep
-        # edit to that test (out of scope for this file). EE-off: noop -> None.
-        fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.user_mapping", "remove_users_from_tenant", None
-        )([user_email.user_email], tenant_id)
     number_of_invited_users = remove_user_from_invited_users(user_email.user_email)
-
-    try:
-        if MULTI_TENANT and not DEV_MODE:
-            # TODO(ee-removal): coupled to test_bulk_invite_limit.py patch of
-            # onyx.server.manage.users.fetch_ee_implementation_or_noop; collapsing
-            # needs a lockstep test edit (out of scope). EE-off: noop -> None.
-            fetch_ee_implementation_or_noop(
-                "onyx.server.tenants.billing", "register_tenant_users", None
-            )(tenant_id, get_live_users_count(db_session))
-    except Exception:
-        logger.error(
-            "Request to update number of seats taken in control plane failed. "
-            "This may cause synchronization issues/out of date enforcement of seat limits."
-        )
-        raise
 
     return number_of_invited_users
 
