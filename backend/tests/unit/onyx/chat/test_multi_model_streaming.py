@@ -35,10 +35,10 @@ from onyx.utils.variable_functionality import global_version
 def _restore_ee_version() -> Generator[None, None, None]:
     """Reset EE global state after each test.
 
-    Importing onyx.chat.process_message triggers set_is_ee_based_on_env_variable()
-    (via the celery client import chain).  Without this fixture, the EE flag stays
-    True for the rest of the session and breaks unrelated tests that mock Confluence
-    or other connectors and assume EE is disabled.
+    Some connector import chains (jira/confluence/run_docfetching) call
+    global_version.set_ee() as an import side-effect. Without this fixture the EE
+    flag stays True for the rest of the session and breaks unrelated tests that
+    mock Confluence or other connectors and assume EE is disabled.
     """
     original = global_version._is_ee
     yield

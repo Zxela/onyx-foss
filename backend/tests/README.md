@@ -71,28 +71,3 @@ pytest --count=50 -x backend/tests/unit/path/to/test.py::test_name
 # Repeat an entire test file
 pytest --count=10 backend/tests/unit/path/to/test_file.py
 ```
-
-## Best Practices
-
-### Use `enable_ee` fixture instead of inlining
-
-Enables EE mode for a test, with proper teardown and cache clearing.
-
-```python
-# Whole file (in a test module, NOT in conftest.py)
-pytestmark = pytest.mark.usefixtures("enable_ee")
-
-# Whole directory — add an autouse wrapper to the directory's conftest.py
-@pytest.fixture(autouse=True)
-def _enable_ee_for_directory(enable_ee: None) -> None:  
-    """Wraps the shared enable_ee fixture with autouse for this directory."""
-
-# Single test
-def test_something(enable_ee: None) -> None: ...
-```
-
-**Note:** `pytestmark` in a `conftest.py` does NOT apply markers to tests in that
-directory — it only affects tests defined in the conftest itself (which is none).
-Use the autouse fixture wrapper pattern shown above instead.
-
-Do NOT inline `global_version.set_ee()` — always use the fixture.

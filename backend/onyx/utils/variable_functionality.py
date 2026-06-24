@@ -1,6 +1,3 @@
-import functools
-import importlib
-import inspect
 from typing import Any
 
 from onyx.configs.app_configs import API_SERVER_HOST
@@ -9,12 +6,17 @@ from onyx.configs.app_configs import API_SERVER_URL_OVERRIDE_FOR_HTTP_REQUESTS
 from onyx.configs.app_configs import APP_API_PREFIX
 from onyx.configs.app_configs import APP_PORT
 from onyx.configs.app_configs import DEV_MODE
-from onyx.utils.logger import setup_logger
-
-logger = setup_logger()
 
 
 class OnyxVersion:
+    """Process-local EE flag.
+
+    Onyx upstream uses this to toggle Enterprise-Edition code paths. This FOSS
+    fork strips EE, so the flag defaults off; it is retained only because a few
+    connector ``__main__`` harnesses and maintenance scripts still flip it
+    explicitly (e.g. for multi-tenant schema resolution during a one-off run).
+    """
+
     def __init__(self) -> None:
         self._is_ee = False
 
@@ -31,59 +33,6 @@ class OnyxVersion:
 global_version = OnyxVersion()
 
 
-@functools.lru_cache(maxsize=128)
-def fetch_versioned_implementation(module: str, attribute: str) -> Any:
-    """
-    Fetches a versioned implementation of a specified attribute from a given module.
-    This function first checks if the application is running in an Enterprise Edition (EE)
-    context. If so, it attempts to import the attribute from the EE-specific module.
-    If the module or attribute is not found, it falls back to the default module or
-    raises the appropriate exception depending on the context.
-
-    Args:
-        module (str): The name of the module from which to fetch the attribute.
-        attribute (str): The name of the attribute to fetch from the module.
-
-    Returns:
-        Any: The fetched implementation of the attribute.
-
-    Raises:
-        ModuleNotFoundError: If the module cannot be found and the error is not related to
-                             the Enterprise Edition fallback logic.
-
-    Logs:
-        Logs debug information about the fetching process and warnings if the versioned
-        implementation cannot be found or loaded.
-    """
-    logger.debug("Fetching versioned implementation for %s.%s", module, attribute)
-    is_ee = global_version.is_ee_version()
-
-    module_full = f"ee.{module}" if is_ee else module
-    try:
-        return getattr(importlib.import_module(module_full), attribute)
-    except ModuleNotFoundError as e:
-        logger.warning(
-            "Failed to fetch versioned implementation for %s.%s: %s",
-            module_full,
-            attribute,
-            e,
-        )
-
-        if is_ee:
-            if "ee.onyx" not in str(e):
-                # If it's a non Onyx related import failure, this is likely because
-                # a dependent library has not been installed. Should raise this failure
-                # instead of letting the server start up
-                raise e
-
-            # Use the MIT version as a fallback, this allows us to develop MIT
-            # versions independently and later add additional EE functionality
-            # similar to feature flagging
-            return getattr(importlib.import_module(module), attribute)
-
-        raise
-
-
 def noop_fallback(*args: Any, **kwargs: Any) -> None:
     """
     A no-op (no operation) fallback function that accepts any arguments but does nothing.
@@ -96,46 +45,6 @@ def noop_fallback(*args: Any, **kwargs: Any) -> None:
     Returns:
         None
     """
-
-
-def fetch_ee_implementation_or_noop(
-    module: str, attribute: str, noop_return_value: Any = None
-) -> Any:
-    """
-    Fetches an EE implementation if EE is enabled, otherwise returns a no-op function.
-    Raises an exception if EE is enabled but the fetch fails.
-
-    Args:
-        module (str): The name of the module from which to fetch the attribute.
-        attribute (str): The name of the attribute to fetch from the module.
-
-    Returns:
-        Any: The fetched EE implementation if successful and EE is enabled, otherwise a no-op function.
-
-    Raises:
-        Exception: If EE is enabled but the fetch fails.
-    """
-    if not global_version.is_ee_version():
-        if inspect.iscoroutinefunction(noop_return_value):
-
-            async def async_noop(*args: Any, **kwargs: Any) -> Any:
-                return await noop_return_value(*args, **kwargs)
-
-            return async_noop
-
-        else:
-
-            def sync_noop(*args: Any, **kwargs: Any) -> Any:  # noqa: ARG001
-                return noop_return_value
-
-            return sync_noop
-    try:
-        return fetch_versioned_implementation(module, attribute)
-    except Exception as e:
-        logger.error(
-            "Failed to fetch implementation for %s.%s: %s", module, attribute, e
-        )
-        raise
 
 
 def build_api_server_url_for_http_requests(
